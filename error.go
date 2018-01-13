@@ -3,20 +3,19 @@ package wikiracer
 import "fmt"
 
 const (
-	ErrPrefixNoLinksFound       = "The two pages aren't connected"
-	ErrPrefixPageNotFound       = "Page not found"
-	ErrPrefixInvalidEmptyInputs = "The provided inputs must not be empty"
+	ErrPrefixDestinationUnreachable = "Destination unreachable"
+	ErrPrefixPageNotFound           = "Page not found"
+	ErrPrefixInvalidEmptyInputs     = "The provided inputs must not be empty"
 )
 
-// NoLinksFound is the error used when an origin isn't connected to a destination.
-type NoLinksFound struct {
-	origin      string
+// DestinationUnreachable is the error used when the destination isn't reachable on a given path.
+type DestinationUnreachable struct {
 	destination string
 }
 
-// Error returns the string representation of the NoLinksFound error.
-func (e NoLinksFound) Error() string {
-	return fmt.Sprintf("%s: (%s, %s)", ErrPrefixNoLinksFound, e.origin, e.destination)
+// Error returns the string representation of the DestinationUnreachable error.
+func (e DestinationUnreachable) Error() string {
+	return fmt.Sprintf("%s: %s", ErrPrefixDestinationUnreachable, e.destination)
 }
 
 // PageNotFound is the error used when a non-existent page is requested.

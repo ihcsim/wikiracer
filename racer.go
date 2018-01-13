@@ -1,16 +1,13 @@
 package wikiracer
 
-import (
-	"fmt"
-	"sync"
-)
+import "fmt"
 
 var wiki Wiki
 
-// FindPath attempts to find a path from the 'origin' page to the 'destination' page by recursively traversing all the links that are either found in or linked to the 'origin' page.
+// FindPath attempts to find a path from the 'origin' page to the 'destination' page by recursively traversing all the links that are found either in the 'origin' page or its linked pages.
 func FindPath(origin, destination string) string {
-	if validationErr := validate(origin, destination); validationErr != nil {
-		return fmt.Sprintf("%s", validationErr)
+	if err := validate(origin, destination); err != nil {
+		return fmt.Sprintf("%s", err)
 	}
 
 	if origin == destination {
@@ -18,43 +15,36 @@ func FindPath(origin, destination string) string {
 	}
 
 	var (
-		path = make(chan string)
-		err  = make(chan error)
-		wg   = &sync.WaitGroup{}
+		pathChan = make(chan string)
+		errChan  = make(chan error)
 	)
 
-	wg.Add(1)
+	defer func() {
+		close(pathChan)
+		close(errChan)
+	}()
+
+	// begin the link traversal process in a goroutine
 	go func() {
-		defer wg.Done()
-		p, e := traverse(origin, destination, wg)
-		if e != nil {
-			err <- e
+		path, err := traverse(origin, destination)
+		if err != nil {
+			errChan <- err
 			return
 		}
-		path <- p
+		pathChan <- path
 	}()
 
-	go func() {
-		defer func() {
-			close(path)
-			close(err)
-		}()
-
-		wg.Wait()
-		//all goroutines exited
-	}()
-
+	// wait for results to arrive via channels
 	for {
 		select {
-		case v := <-path:
-			return origin + " -> " + v
-		case e := <-err:
-			if t, ok := e.(NoLinksFound); ok {
-				t.origin = origin
+		case path := <-pathChan:
+			return origin + " -> " + path
+		case err := <-errChan:
+			if t, ok := err.(DestinationUnreachable); ok {
 				return fmt.Sprintf("%s", t)
 			}
 
-			return fmt.Sprintf("%s", e)
+			return fmt.Sprintf("%s", err)
 		}
 	}
 }
@@ -75,16 +65,21 @@ func validate(origin, destination string) error {
 	return nil
 }
 
-func traverse(origin, destination string, wg *sync.WaitGroup) (string, error) {
-	page, wikiErr := wiki.FindPage(origin)
-	if wikiErr != nil {
-		return "", wikiErr
+func traverse(origin, destination string) (string, error) {
+	page, err := wiki.FindPage(origin)
+	if err != nil {
+		return "", err
 	}
 
 	if len(page.Links) == 0 {
-		return "", nil
+		// this page is a dead end and the racer can't reach the destination from this path.
+		return "", DestinationUnreachable{destination: destination}
 	}
 
+	// create a goroutine for each link of this page.
+	// every goroutine is assigned its own path and error channels.
+	// the path channel receives either the path to the destination or nothing at all if the destination is unreachable on this path.
+	// the error channel receives all errors returned by the goroutines, including the 'destination unreachable' error.
 	var (
 		pathChans = make([]chan string, len(page.Links))
 		errChans  = make([]chan error, len(page.Links))
@@ -96,44 +91,54 @@ func traverse(origin, destination string, wg *sync.WaitGroup) (string, error) {
 
 	for index, link := range page.Links {
 		if link == destination {
+			// found destination
 			return link, nil
 		}
 
-		wg.Add(1)
 		go func(link string, index int) {
-			defer wg.Done()
-
-			p, e := traverse(link, destination, wg)
-			if e != nil {
-				errChans[index] <- e
+			// follow a new path using 'link' as the starting point.
+			// returned values of all recursive calls are captured here.
+			path, err := traverse(link, destination)
+			if err != nil {
+				errChans[index] <- err
 				return
 			}
 
-			if p != "" {
-				p = link + " -> " + p
-			}
-
-			pathChans[index] <- p
+			pathChans[index] <- link + " -> " + path
 		}(link, index)
 	}
 
-	stillAlive := len(page.Links)
+	// keep looping until either:
+	// i.   a path to the destination is received from one of the goroutines,
+	// ii.  an error is received from one of the goroutines, or
+	// iii. all goroutines have returned the 'destination unreachable' error
+	goroutinesCount := len(page.Links)
 	for {
 		for i := 0; i < len(page.Links); i++ {
-			select {
-			case v := <-pathChans[i]:
-				if v != "" {
-					return v, nil
-				}
+			// the pathChans[i] and errChans[i] are set to nil after we are done with them.
+			// we can't close them, because closed channels are always ready to receive, where
+			// nil channels are always block. Refer https://dave.cheney.net/2013/04/30/curious-channels
+			if pathChans[i] != nil || errChans[i] != nil {
+				select {
+				case path := <-pathChans[i]:
+					pathChans[i] = nil
+					return path, nil
 
-				stillAlive -= 1
-				if stillAlive == 0 {
-					return "", NoLinksFound{destination: destination}
-				}
+				case err := <-errChans[i]:
+					errChans[i] = nil
+					cast, ok := err.(DestinationUnreachable)
+					if !ok {
+						return "", err
+					}
 
-			case e := <-errChans[i]:
-				return "", e
-			default:
+					goroutinesCount -= 1
+					if goroutinesCount == 0 {
+						// all the goroutines have returned the 'destination unreachable' error
+						return "", cast
+					}
+
+				default:
+				}
 			}
 		}
 	}

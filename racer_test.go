@@ -39,7 +39,7 @@ func TestFindPath(t *testing.T) {
 			{origin: "123456789", expected: InvalidEmptyInput{origin: "123456789"}},
 			{origin: "123456789", destination: "Mike Tyson", expected: PageNotFound{Page{Title: "123456789"}}},
 			{origin: "Mike Tyson", destination: "123456789", expected: PageNotFound{Page{Title: "123456789"}}},
-			{origin: "Mike Tyson", destination: "Michael Jordan", expected: NoLinksFound{origin: "Mike Tyson", destination: "Michael Jordan"}},
+			{origin: "Mike Tyson", destination: "Michael Jordan", expected: DestinationUnreachable{destination: "Michael Jordan"}},
 		}
 
 		for id, testCase := range testCases {
