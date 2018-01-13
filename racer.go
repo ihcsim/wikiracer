@@ -1,16 +1,8 @@
 package wikiracer
 
-import "fmt"
-
-const (
-	requestEndpoint = "https://en.wikipedia.org/w/api.php"
-	requestAction   = "query"
-	requestProp     = "links"
-
-	pageNamespace = 0
-
-	responseDefaultFormat = "json"
-	responseDefaultLimit  = 1
+import (
+	"fmt"
+	"sync"
 )
 
 var wiki Wiki
@@ -21,19 +13,49 @@ func FindPath(origin, destination string) string {
 		return fmt.Sprintf("%s", validationErr)
 	}
 
+	if origin == destination {
+		return origin
+	}
+
 	var (
-		fullPath = make(chan string)
-		err      = make(chan error)
-		result   = ""
+		path = make(chan string)
+		err  = make(chan error)
+		wg   = &sync.WaitGroup{}
 	)
 
-	go traverse(origin, destination, fullPath, err)
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		p, e := traverse(origin, destination, wg)
+		if e != nil {
+			err <- e
+			return
+		}
+		path <- p
+	}()
 
-	select {
-	case result = <-fullPath:
-		return origin + " -> " + result
-	case e := <-err:
-		return fmt.Sprintf("%s", e)
+	go func() {
+		defer func() {
+			close(path)
+			close(err)
+		}()
+
+		wg.Wait()
+		//all goroutines exited
+	}()
+
+	for {
+		select {
+		case v := <-path:
+			return origin + " -> " + v
+		case e := <-err:
+			if t, ok := e.(NoLinksFound); ok {
+				t.origin = origin
+				return fmt.Sprintf("%s", t)
+			}
+
+			return fmt.Sprintf("%s", e)
+		}
 	}
 }
 
@@ -53,36 +75,66 @@ func validate(origin, destination string) error {
 	return nil
 }
 
-func traverse(origin, destination string, path chan string, err chan error) {
-	if origin == destination {
-		path <- origin
-		return
-	}
-
+func traverse(origin, destination string, wg *sync.WaitGroup) (string, error) {
 	page, wikiErr := wiki.FindPage(origin)
 	if wikiErr != nil {
-		err <- wikiErr
-		return
+		return "", wikiErr
 	}
 
 	if len(page.Links) == 0 {
-		return
+		return "", nil
 	}
 
-	for _, link := range page.Links {
+	var (
+		pathChans = make([]chan string, len(page.Links))
+		errChans  = make([]chan error, len(page.Links))
+	)
+	for i := 0; i < len(page.Links); i++ {
+		pathChans[i] = make(chan string)
+		errChans[i] = make(chan error)
+	}
+
+	for index, link := range page.Links {
 		if link == destination {
-			path <- link
-			return
+			return link, nil
 		}
+
+		wg.Add(1)
+		go func(link string, index int) {
+			defer wg.Done()
+
+			p, e := traverse(link, destination, wg)
+			if e != nil {
+				errChans[index] <- e
+				return
+			}
+
+			if p != "" {
+				p = link + " -> " + p
+			}
+
+			pathChans[index] <- p
+		}(link, index)
 	}
 
-	for _, link := range page.Links {
-		intermediate := make(chan string)
-		go traverse(link, destination, intermediate, err)
+	stillAlive := len(page.Links)
+	for {
+		for i := 0; i < len(page.Links); i++ {
+			select {
+			case v := <-pathChans[i]:
+				if v != "" {
+					return v, nil
+				}
 
-		go func() {
-			v := <-intermediate
-			path <- link + " -> " + v
-		}()
+				stillAlive -= 1
+				if stillAlive == 0 {
+					return "", NoLinksFound{destination: destination}
+				}
+
+			case e := <-errChans[i]:
+				return "", e
+			default:
+			}
+		}
 	}
 }
