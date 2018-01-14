@@ -1,4 +1,4 @@
-package wikiracer
+package wiki
 
 // Page represents a wiki page
 type Page struct {

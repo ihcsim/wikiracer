@@ -3,10 +3,19 @@ package wikiracer
 import (
 	"fmt"
 	"testing"
+
+	"github.com/ihcsim/wikiracer/errors"
+	"github.com/ihcsim/wikiracer/internal/crawler"
+	"github.com/ihcsim/wikiracer/internal/validator"
+	"github.com/ihcsim/wikiracer/internal/wiki"
 )
 
 func TestFindPath(t *testing.T) {
-	wiki = NewMockWiki()
+	mockWiki := NewMockWiki()
+	racer := &Racer{
+		Crawler:   crawler.NewForward(mockWiki),
+		Validator: &validator.InputValidator{mockWiki},
+	}
 
 	t.Run("Pages Exist", func(t *testing.T) {
 		var testCases = []struct {
@@ -23,7 +32,7 @@ func TestFindPath(t *testing.T) {
 		}
 
 		for id, testCase := range testCases {
-			if actual := FindPath(testCase.origin, testCase.destination); testCase.expected != actual {
+			if actual := racer.FindPath(testCase.origin, testCase.destination); testCase.expected != actual {
 				t.Errorf("Mismatch path. Test case: %d\nExpected: %s\nActual: %s", id, testCase.expected, actual)
 			}
 		}
@@ -35,19 +44,45 @@ func TestFindPath(t *testing.T) {
 			destination string
 			expected    error
 		}{
-			{origin: "", expected: InvalidEmptyInput{}},
-			{origin: "123456789", expected: InvalidEmptyInput{origin: "123456789"}},
-			{origin: "123456789", destination: "Mike Tyson", expected: PageNotFound{Page{Title: "123456789"}}},
-			{origin: "Mike Tyson", destination: "123456789", expected: PageNotFound{Page{Title: "123456789"}}},
-			{origin: "Mike Tyson", destination: "Michael Jordan", expected: DestinationUnreachable{destination: "Michael Jordan"}},
+			{origin: "", expected: errors.InvalidEmptyInput{}},
+			{origin: "123456789", expected: errors.InvalidEmptyInput{Origin: "123456789"}},
+			{origin: "123456789", destination: "Mike Tyson", expected: errors.PageNotFound{wiki.Page{Title: "123456789"}}},
+			{origin: "Mike Tyson", destination: "123456789", expected: errors.PageNotFound{wiki.Page{Title: "123456789"}}},
+			{origin: "Mike Tyson", destination: "Michael Jordan", expected: errors.DestinationUnreachable{Destination: "Michael Jordan"}},
 		}
 
 		for id, testCase := range testCases {
-			actual := FindPath(testCase.origin, testCase.destination)
+			actual := racer.FindPath(testCase.origin, testCase.destination)
 			if fmt.Sprintf("%s", testCase.expected) != actual {
 				t.Errorf("Mismatch error. Test case: %d\nExpected: %s\nActual: %s", id, testCase.expected, actual)
 			}
 		}
 	})
+}
 
+type mockWiki struct {
+	pages map[string]*wiki.Page
+}
+
+func NewMockWiki() *mockWiki {
+	testData := map[string]*wiki.Page{
+		"Alexander the Great": &wiki.Page{ID: 1000, Title: "Alexander the Great", Namespace: 0, Links: []string{"Apepi", "Greek language", "Diodotus I"}},
+		"Apepi":               &wiki.Page{ID: 1005, Title: "Apepi", Namespace: 0},
+		"Diodotus I":          &wiki.Page{ID: 1007, Title: "Diodotus I", Namespace: 0},
+		"Fruit anatomy":       &wiki.Page{ID: 1001, Title: "Fruit anatomy", Namespace: 0, Links: []string{"Segment"}},
+		"Greek language":      &wiki.Page{ID: 1002, Title: "Greek language", Namespace: 0, Links: []string{"Fruit anatomy"}},
+		"Mike Tyson":          &wiki.Page{ID: 1003, Title: "Mike Tyson", Namespace: 0, Links: []string{"Alexander the Great"}},
+		"Segment":             &wiki.Page{ID: 1004, Title: "Segment", Namespace: 0},
+		"Michael Jordan":      &wiki.Page{ID: 1006, Title: "Michael Jordan", Namespace: 0},
+	}
+	return &mockWiki{pages: testData}
+}
+
+func (m *mockWiki) FindPage(title string) (*wiki.Page, error) {
+	page, exist := m.pages[title]
+	if !exist {
+		return nil, errors.PageNotFound{wiki.Page{Title: title}}
+	}
+
+	return page, nil
 }
