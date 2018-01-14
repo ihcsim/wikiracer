@@ -60,11 +60,11 @@ func TestFindPath(t *testing.T) {
 	})
 }
 
-type mockWiki struct {
+type MockWiki struct {
 	pages map[string]*wiki.Page
 }
 
-func NewMockWiki() *mockWiki {
+func NewMockWiki() *MockWiki {
 	testData := map[string]*wiki.Page{
 		"Alexander the Great": &wiki.Page{ID: 1000, Title: "Alexander the Great", Namespace: 0, Links: []string{"Apepi", "Greek language", "Diodotus I"}},
 		"Apepi":               &wiki.Page{ID: 1005, Title: "Apepi", Namespace: 0},
@@ -75,10 +75,10 @@ func NewMockWiki() *mockWiki {
 		"Segment":             &wiki.Page{ID: 1004, Title: "Segment", Namespace: 0},
 		"Michael Jordan":      &wiki.Page{ID: 1006, Title: "Michael Jordan", Namespace: 0},
 	}
-	return &mockWiki{pages: testData}
+	return &MockWiki{pages: testData}
 }
 
-func (m *mockWiki) FindPage(title string) (*wiki.Page, error) {
+func (m *MockWiki) FindPage(title string) (*wiki.Page, error) {
 	page, exist := m.pages[title]
 	if !exist {
 		return nil, errors.PageNotFound{wiki.Page{Title: title}}

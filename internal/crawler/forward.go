@@ -84,7 +84,7 @@ func (f *Forward) Discover(origin, destination string) (string, error) {
 						return "", err
 					}
 
-					goroutinesCount -= 1
+					goroutinesCount--
 					if goroutinesCount == 0 {
 						// all the goroutines have returned the 'destination unreachable' error
 						return "", cast
