@@ -1,6 +1,10 @@
 package wikiracer
 
-import "fmt"
+import (
+	"fmt"
+
+	"github.com/ihcsim/wikiracer/internal/wiki"
+)
 
 // Racer traverses from a wiki page to another using only links.
 // It times the traversal journey.
@@ -20,7 +24,7 @@ func (r *Racer) FindPath(origin, destination string) string {
 	}
 
 	var (
-		pathChan = make(chan string)
+		pathChan = make(chan *wiki.Path)
 		errChan  = make(chan error)
 	)
 
@@ -43,7 +47,7 @@ func (r *Racer) FindPath(origin, destination string) string {
 	for {
 		select {
 		case path := <-pathChan:
-			return origin + " -> " + path
+			return origin + " -> " + fmt.Sprintf("%s", path)
 		case err := <-errChan:
 			return fmt.Sprintf("%s", err)
 		}
