@@ -8,10 +8,11 @@ import (
 	"github.com/ihcsim/wikiracer/internal/crawler"
 	"github.com/ihcsim/wikiracer/internal/validator"
 	"github.com/ihcsim/wikiracer/internal/wiki"
+	"github.com/ihcsim/wikiracer/test"
 )
 
 func TestFindPath(t *testing.T) {
-	mockWiki := NewMockWiki()
+	mockWiki := test.NewMockWiki()
 	racer := &Racer{
 		Crawler:   crawler.NewForward(mockWiki),
 		Validator: &validator.InputValidator{mockWiki},
@@ -29,6 +30,15 @@ func TestFindPath(t *testing.T) {
 			{origin: "Mike Tyson", destination: "Greek language", expected: "Mike Tyson -> Alexander the Great -> Greek language"},
 			{origin: "Mike Tyson", destination: "Fruit anatomy", expected: "Mike Tyson -> Alexander the Great -> Greek language -> Fruit anatomy"},
 			{origin: "Mike Tyson", destination: "Segment", expected: "Mike Tyson -> Alexander the Great -> Greek language -> Fruit anatomy -> Segment"},
+			{origin: "Mike Tyson", destination: "Diodotus I", expected: "Mike Tyson -> Alexander the Great -> Diodotus I"},
+			{origin: "Mike Tyson", destination: "1984 Summer Olympics", expected: "Mike Tyson -> 1984 Summer Olympics"},
+			{origin: "Mike Tyson", destination: "7-Eleven", expected: "Mike Tyson -> 1984 Summer Olympics -> 7-Eleven"},
+			{origin: "Mike Tyson", destination: "Big C", expected: "Mike Tyson -> 1984 Summer Olympics -> 7-Eleven -> Big C"},
+			{origin: "Mike Tyson", destination: "Calgary", expected: "Mike Tyson -> 1984 Summer Olympics -> 7-Eleven -> Calgary"},
+			{origin: "Mike Tyson", destination: "Eurocash", expected: "Mike Tyson -> 1984 Summer Olympics -> 7-Eleven -> Eurocash"},
+			{origin: "Mike Tyson", destination: "Małpka Express", expected: "Mike Tyson -> 1984 Summer Olympics -> 7-Eleven -> Eurocash -> Małpka Express"},
+			{origin: "Mike Tyson", destination: "Tea", expected: "Mike Tyson -> 1984 Summer Olympics -> 7-Eleven -> Eurocash -> Tea"},
+			{origin: "Mike Tyson", destination: "Afghanistan", expected: "Mike Tyson -> 1984 Summer Olympics -> Afghanistan"},
 		}
 
 		for id, testCase := range testCases {
@@ -58,31 +68,4 @@ func TestFindPath(t *testing.T) {
 			}
 		}
 	})
-}
-
-type MockWiki struct {
-	pages map[string]*wiki.Page
-}
-
-func NewMockWiki() *MockWiki {
-	testData := map[string]*wiki.Page{
-		"Alexander the Great": &wiki.Page{ID: 1000, Title: "Alexander the Great", Namespace: 0, Links: []string{"Apepi", "Greek language", "Diodotus I"}},
-		"Apepi":               &wiki.Page{ID: 1005, Title: "Apepi", Namespace: 0},
-		"Diodotus I":          &wiki.Page{ID: 1007, Title: "Diodotus I", Namespace: 0},
-		"Fruit anatomy":       &wiki.Page{ID: 1001, Title: "Fruit anatomy", Namespace: 0, Links: []string{"Segment"}},
-		"Greek language":      &wiki.Page{ID: 1002, Title: "Greek language", Namespace: 0, Links: []string{"Fruit anatomy"}},
-		"Mike Tyson":          &wiki.Page{ID: 1003, Title: "Mike Tyson", Namespace: 0, Links: []string{"Alexander the Great"}},
-		"Segment":             &wiki.Page{ID: 1004, Title: "Segment", Namespace: 0},
-		"Michael Jordan":      &wiki.Page{ID: 1006, Title: "Michael Jordan", Namespace: 0},
-	}
-	return &MockWiki{pages: testData}
-}
-
-func (m *MockWiki) FindPage(title string) (*wiki.Page, error) {
-	page, exist := m.pages[title]
-	if !exist {
-		return nil, errors.PageNotFound{wiki.Page{Title: title}}
-	}
-
-	return page, nil
 }
