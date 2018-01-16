@@ -13,7 +13,7 @@ type Racer struct {
 	Validator
 }
 
-// FindPath attempts to find a path from the 'origin' page to the 'destination' page by traversing all the links that are found either in the 'origin' page or its linked pages.
+// FindPath attempts to find a path from the origin page to the destination page by traversing all the links that are encountered along the way.
 func (r *Racer) FindPath(origin, destination string) string {
 	if err := r.Validate(origin, destination); err != nil {
 		return fmt.Sprintf("%s", err)
@@ -23,33 +23,18 @@ func (r *Racer) FindPath(origin, destination string) string {
 		return origin
 	}
 
-	var (
-		pathChan = make(chan *wiki.Path)
-		errChan  = make(chan error)
-	)
-
-	defer func() {
-		close(pathChan)
-		close(errChan)
-	}()
-
-	// begin the link traversal process in a goroutine
 	go func() {
-		path, err := r.Discover(origin, destination)
-		if err != nil {
-			errChan <- err
-			return
-		}
-		pathChan <- path
+		intermediate := wiki.NewPath()
+		r.Discover(origin, destination, intermediate)
 	}()
 
-	// wait for results to arrive via channels
+	var errors = []error{}
 	for {
 		select {
-		case path := <-pathChan:
-			return origin + " -> " + fmt.Sprintf("%s", path)
-		case err := <-errChan:
-			return fmt.Sprintf("%s", err)
+		case path := <-r.Path():
+			return fmt.Sprintf("%s", path)
+		case err := <-r.Error():
+			errors = append(errors, err)
 		}
 	}
 }

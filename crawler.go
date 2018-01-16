@@ -7,7 +7,17 @@ import "github.com/ihcsim/wikiracer/internal/wiki"
 type Crawler interface {
 
 	// Discover provides the crawling implementation of a Crawler.
-	// If found, it returns the path from origin to destination.
-	// Otherwise, if such a path doesn't exist, it returns an empty string and an error.
-	Discover(origin, destination string) (*wiki.Path, error)
+	// The intermediate path struct is used to keep track of all the pages encountered so far.
+	// If found, the path from the origin page to the destination page can be retrieved using the Path() method.
+	// Otherwise, if such a path doesn't exist, the Error() method will return a DestinationUnreachable error.
+	Discover(origin, destination string, intermediate *wiki.Path)
+
+	// Path returns a channel which receives the path result from the children goroutines.
+	Path() <-chan *wiki.Path
+
+	// Error returns a channel which receives errors from the children goroutines.
+	Error() <-chan error
+
+	// Exit closes the path and error channels.
+	Exit()
 }
