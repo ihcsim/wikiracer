@@ -76,12 +76,16 @@ func (f *Forward) discover(origin, destination string, intermediate *wiki.Path) 
 		return
 	}
 
-	f.addVisited(origin)
-
 	if intermediate == nil {
 		intermediate = wiki.NewPath()
 	}
 	intermediate.AddPage(page)
+
+	if f.visited(origin) {
+		f.errors <- errors.LoopDetected{Path: intermediate}
+		return
+	}
+	f.addVisited(origin)
 
 	// found destination
 	if page.Title == destination {

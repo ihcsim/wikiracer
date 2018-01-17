@@ -16,6 +16,16 @@ func (e DestinationUnreachable) Error() string {
 	return fmt.Sprintf("%s: %s", "Destination unreachable", e.Destination)
 }
 
+// LoopDetected is the error used when the crawler encounters a sequence of pages that form a loop.
+type LoopDetected struct {
+	Path *wiki.Path
+}
+
+// Error is the string representation of the LoopDetected error.
+func (e LoopDetected) Error() string {
+	return fmt.Sprintf("%s", e.Path)
+}
+
 // PageNotFound is the error used when a request page can't be found in the wiki.
 type PageNotFound struct {
 	wiki.Page

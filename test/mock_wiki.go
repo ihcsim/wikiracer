@@ -14,7 +14,7 @@ type MockWiki struct {
 func NewMockWiki() *MockWiki {
 	testData := map[string]*wiki.Page{
 		"1984 Summer Olympics": &wiki.Page{ID: 2000, Title: "1984 Summer Olympics", Namespace: 0, Links: []string{"7-Eleven", "Afghanistan"}},
-		"2010 Winter Olympics": &wiki.Page{ID: 2009, Title: "2010 Winter Olympics", Namespace: 0},
+		"2010 Winter Olympics": &wiki.Page{ID: 2009, Title: "2010 Winter Olympics", Namespace: 0, Links: []string{"1984 Summer Olympics"}},
 		"7-Eleven":             &wiki.Page{ID: 2001, Title: "7-Eleven", Namespace: 0, Links: []string{"Big C", "Calgary", "Eurocash"}},
 		"Afghanistan":          &wiki.Page{ID: 2002, Title: "Afghanistan", Namespace: 0, Links: []string{}},
 		"Alexander the Great":  &wiki.Page{ID: 1000, Title: "Alexander the Great", Namespace: 0, Links: []string{"Apepi", "Greek language", "Diodotus I"}},

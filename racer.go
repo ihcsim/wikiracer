@@ -30,7 +30,10 @@ func (r *Racer) FindPath(origin, destination string) string {
 		case path := <-r.Path():
 			return fmt.Sprintf("%s", path)
 		case err := <-r.Error():
-			if _, ok := err.(errors.DestinationUnreachable); !ok {
+			switch err.(type) {
+			case errors.DestinationUnreachable:
+			case errors.LoopDetected:
+			default:
 				return fmt.Sprintf("%s", err)
 			}
 		case <-r.Done():
