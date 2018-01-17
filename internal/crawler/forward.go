@@ -15,8 +15,7 @@ type Forward struct {
 	done   chan struct{}
 	wg     *sync.WaitGroup
 
-	v    map[string]struct{}
-	vMux sync.Mutex
+	v sync.Map
 }
 
 // NewForward returns an new instance of the Forward crawler.
@@ -27,8 +26,7 @@ func NewForward(w wiki.Wiki) *Forward {
 		errors: make(chan error),
 		done:   make(chan struct{}),
 		wg:     &sync.WaitGroup{},
-		vMux:   sync.Mutex{},
-		v:      make(map[string]struct{}),
+		v:      sync.Map{},
 	}
 }
 
@@ -111,14 +109,10 @@ func (f *Forward) discover(origin, destination string, intermediate *wiki.Path) 
 }
 
 func (f *Forward) addVisited(title string) {
-	f.vMux.Lock()
-	defer f.vMux.Unlock()
-	f.v[title] = struct{}{}
+	f.v.Store(title, struct{}{})
 }
 
 func (f *Forward) visited(title string) bool {
-	f.vMux.Lock()
-	defer f.vMux.Unlock()
-	_, exist := f.v[title]
+	_, exist := f.v.Load(title)
 	return exist
 }
