@@ -3,7 +3,7 @@ package wikiracer
 import (
 	"fmt"
 
-	"github.com/ihcsim/wikiracer/internal/wiki"
+	"github.com/ihcsim/wikiracer/errors"
 )
 
 // Racer traverses from a wiki page to another using only links.
@@ -23,18 +23,19 @@ func (r *Racer) FindPath(origin, destination string) string {
 		return origin
 	}
 
-	go func() {
-		intermediate := wiki.NewPath()
-		r.Discover(origin, destination, intermediate)
-	}()
+	go r.Run(origin, destination)
 
-	var errors = []error{}
 	for {
 		select {
 		case path := <-r.Path():
 			return fmt.Sprintf("%s", path)
 		case err := <-r.Error():
-			errors = append(errors, err)
+			if _, ok := err.(errors.DestinationUnreachable); !ok {
+				return fmt.Sprintf("%s", err)
+			}
+		case <-r.Done():
+			// if we received from done, it means all goroutines completed but no path was found.
+			return fmt.Sprintf("%s", errors.DestinationUnreachable{Destination: destination})
 		}
 	}
 }

@@ -13,11 +13,6 @@ import (
 
 func TestFindPath(t *testing.T) {
 	mockWiki := test.NewMockWiki()
-	racer := &Racer{
-		Crawler:   crawler.NewForward(mockWiki),
-		Validator: &validator.InputValidator{mockWiki},
-	}
-	defer racer.Exit()
 
 	t.Run("Pages Exist", func(t *testing.T) {
 		var testCases = []struct {
@@ -43,6 +38,11 @@ func TestFindPath(t *testing.T) {
 		}
 
 		for id, testCase := range testCases {
+			racer := &Racer{
+				Crawler:   crawler.NewForward(mockWiki),
+				Validator: &validator.InputValidator{mockWiki},
+			}
+
 			if actual := racer.FindPath(testCase.origin, testCase.destination); testCase.expected != actual {
 				t.Errorf("Mismatch path. Test case: %d\nExpected: %s\nActual: %s", id, testCase.expected, actual)
 			}
@@ -50,7 +50,6 @@ func TestFindPath(t *testing.T) {
 	})
 
 	t.Run("Pages Don't Exist", func(t *testing.T) {
-		t.Skip()
 		var testCases = []struct {
 			origin      string
 			destination string
@@ -64,6 +63,11 @@ func TestFindPath(t *testing.T) {
 		}
 
 		for id, testCase := range testCases {
+			racer := &Racer{
+				Crawler:   crawler.NewForward(mockWiki),
+				Validator: &validator.InputValidator{mockWiki},
+			}
+
 			actual := racer.FindPath(testCase.origin, testCase.destination)
 			if fmt.Sprintf("%s", testCase.expected) != actual {
 				t.Errorf("Mismatch error. Test case: %d\nExpected: %s\nActual: %s", id, testCase.expected, actual)
