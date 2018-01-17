@@ -7,7 +7,7 @@ import (
 )
 
 func TestDiscover(t *testing.T) {
-	t.Run("Visit Pages", func(t *testing.T) {
+	t.Run("Visited Pages", func(t *testing.T) {
 		// these test cases only verify pages from origin to destination are marked as visited.
 		// other goroutines might have been created for to discover other paths and aren't included in these tests.
 
