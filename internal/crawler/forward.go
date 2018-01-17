@@ -14,6 +14,9 @@ type Forward struct {
 	errors chan error
 	done   chan struct{}
 	wg     *sync.WaitGroup
+
+	v    map[string]struct{}
+	vMux sync.Mutex
 }
 
 // NewForward returns an new instance of the Forward crawler.
@@ -24,6 +27,8 @@ func NewForward(w wiki.Wiki) *Forward {
 		errors: make(chan error),
 		done:   make(chan struct{}),
 		wg:     &sync.WaitGroup{},
+		vMux:   sync.Mutex{},
+		v:      make(map[string]struct{}),
 	}
 }
 
@@ -34,7 +39,7 @@ func (f *Forward) Run(origin, destination string) {
 	f.wg.Add(1)
 	go func() {
 		defer f.wg.Done()
-		f.Discover(origin, destination, nil)
+		f.discover(origin, destination, nil)
 	}()
 
 	f.wg.Wait()
@@ -51,16 +56,27 @@ func (f *Forward) Error() <-chan error {
 	return f.errors
 }
 
-// Discover provides the crawling implementation of a Crawler.
-// The intermediate path struct is used to keep track of all the pages encountered so far. It can be set to nil for the first call to Discover.
-// If found, the path from the origin page to the destination page can be retrieved using the Path() method.
-// Otherwise, if such a path doesn't exist, the Error() method will return a DestinationUnreachable error.
-func (f *Forward) Discover(origin, destination string, intermediate *wiki.Path) {
+// Done returns a channel which can be used to signify that the crawl is completed.
+func (f *Forward) Done() <-chan struct{} {
+	return f.done
+}
+
+func (f *Forward) discover(origin, destination string, intermediate *wiki.Path) {
+	// discover crawls from origin to destination using all the links found in the pages.
+	// for every page that it encounters:
+	// 1. it marks the page as visited by adding it to the 'v' map
+	// 2. it appends the page to the sequence of pages in the 'intermediate' path
+	// 3. if the page is the destination page, it returns the 'intermediate' path
+	// 4. if the page isn't the destination page and has no links, it returns the 'destination unreachable' error because it has reached a dead end on this path
+	// 5. otherwise, it creates a goroutine to crawl every link of the page
+
 	page, err := f.FindPage(origin)
 	if err != nil {
 		f.errors <- err
 		return
 	}
+
+	f.addVisited(origin)
 
 	if intermediate == nil {
 		intermediate = wiki.NewPath()
@@ -85,12 +101,20 @@ func (f *Forward) Discover(origin, destination string, intermediate *wiki.Path) 
 			defer f.wg.Done()
 			newPath := wiki.NewPath()
 			newPath.Clone(intermediate)
-			f.Discover(link, destination, newPath)
+			f.discover(link, destination, newPath)
 		}(link)
 	}
 }
 
-// Done returns a channel which can be used to signify that the crawl is completed.
-func (f *Forward) Done() <-chan struct{} {
-	return f.done
+func (f *Forward) addVisited(title string) {
+	f.vMux.Lock()
+	defer f.vMux.Unlock()
+	f.v[title] = struct{}{}
+}
+
+func (f *Forward) visited(title string) bool {
+	f.vMux.Lock()
+	defer f.vMux.Unlock()
+	_, exist := f.v[title]
+	return exist
 }
