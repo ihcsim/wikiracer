@@ -3,10 +3,13 @@ package crawler
 import (
 	"testing"
 
+	"github.com/ihcsim/wikiracer/log"
 	"github.com/ihcsim/wikiracer/test"
 )
 
 func TestDiscover(t *testing.T) {
+	log.Instance().SetBackend(log.QuietBackend)
+
 	t.Run("Visited Pages", func(t *testing.T) {
 		// these test cases only verify pages from origin to destination are marked as visited.
 		// other goroutines might have been created for to discover other paths and aren't included in these tests.

@@ -5,6 +5,7 @@ import (
 
 	"github.com/ihcsim/wikiracer/errors"
 	"github.com/ihcsim/wikiracer/internal/wiki"
+	"github.com/ihcsim/wikiracer/log"
 )
 
 // Forward is a crawler that attempts to find a path from an origin page to a destination page using an uni-directional traversal pattern.
@@ -70,6 +71,7 @@ func (f *Forward) discover(origin, destination string, intermediate *wiki.Path) 
 
 	page, err := f.FindPage(origin)
 	if err != nil {
+		log.Instance().Errorf("%s", err)
 		f.errors <- err
 		return
 	}
@@ -80,20 +82,24 @@ func (f *Forward) discover(origin, destination string, intermediate *wiki.Path) 
 	intermediate.AddPage(page)
 
 	if f.visited(origin) {
+		log.Instance().Warningf("Loop detected. Title=%q Predecessors=%q", page.Title, intermediate)
 		f.errors <- errors.LoopDetected{Path: intermediate}
 		return
 	}
 	f.addVisited(origin)
+	log.Instance().Infof("Found a new page. Title=%q Predecessors=%q", page.Title, intermediate)
 
 	// found destination
 	if page.Title == destination {
+		log.Instance().Infof("Found destination. Title=%q Predecessors=%q", page.Title, intermediate)
 		f.path <- intermediate
 		return
 	}
 
 	// this page is a dead end and the racer can't reach the destination from this path.
 	if len(page.Links) == 0 {
-		f.errors <- errors.DestinationUnreachable{Destination: destination}
+		log.Instance().Noticef("Dead end page. Title=%q Predecessors=%q", page.Title, intermediate)
+		f.errors <- errors.DestinationUnreachable{Destination: page.Title}
 		return
 	}
 

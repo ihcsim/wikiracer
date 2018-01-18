@@ -1,0 +1,13 @@
+{
+	"comment": "",
+	"ignore": "test",
+	"package": [
+		{
+			"checksumSHA1": "rL5r44ASTGubGW88gqQwlvVQshw=",
+			"path": "gopkg.in/op/go-logging.v1",
+			"revision": "b2cb9fa56473e98db8caba80237377e83fe44db5",
+			"revisionTime": "2016-02-11T21:21:56Z"
+		}
+	],
+	"rootPath": "github.com/ihcsim/wikiracer"
+}

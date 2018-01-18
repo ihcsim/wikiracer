@@ -8,10 +8,13 @@ import (
 	"github.com/ihcsim/wikiracer/internal/crawler"
 	"github.com/ihcsim/wikiracer/internal/validator"
 	"github.com/ihcsim/wikiracer/internal/wiki"
+	"github.com/ihcsim/wikiracer/log"
 	"github.com/ihcsim/wikiracer/test"
 )
 
 func TestFindPath(t *testing.T) {
+	log.Instance().SetBackend(log.QuietBackend)
+
 	mockWiki := test.NewMockWiki()
 
 	t.Run("Existent Pages", func(t *testing.T) {
