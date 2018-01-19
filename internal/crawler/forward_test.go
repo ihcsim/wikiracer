@@ -1,11 +1,15 @@
 package crawler
 
 import (
+	"context"
 	"testing"
+	"time"
 
 	"github.com/ihcsim/wikiracer/log"
 	"github.com/ihcsim/wikiracer/test"
 )
+
+const timeout = 500 * time.Millisecond
 
 func TestDiscover(t *testing.T) {
 	log.Instance().SetBackend(log.QuietBackend)
@@ -37,18 +41,23 @@ func TestDiscover(t *testing.T) {
 		}
 
 		for id, testCase := range testCases {
-			crawler := NewForward(test.NewMockWiki())
-			go crawler.Run(testCase.origin, testCase.destination)
+			var (
+				crawler         = NewForward(test.NewMockWiki())
+				ctx, cancelFunc = context.WithTimeout(context.Background(), timeout)
+			)
+			defer cancelFunc()
 
-			// wait for either path result is received or the crawler finishes all its activities
+			go crawler.Run(ctx, testCase.origin, testCase.destination)
+
+			// wait for path result to arrive
 			select {
 			case <-crawler.Path():
-			case <-crawler.Done():
+			case <-ctx.Done():
 			}
 
 			for _, title := range testCase.expected {
 				if !crawler.visited(title) {
-					t.Errorf("Test case %d failed.\nExpected page %q to be included in crawler's visited map: %q", id, title)
+					t.Errorf("Test case %d failed.\nExpected page %q to be included in crawler's visited map", id, title)
 				}
 			}
 		}

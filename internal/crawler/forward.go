@@ -1,9 +1,9 @@
 package crawler
 
 import (
+	"context"
 	"sync"
 
-	"github.com/ihcsim/wikiracer/errors"
 	"github.com/ihcsim/wikiracer/internal/wiki"
 	"github.com/ihcsim/wikiracer/log"
 )
@@ -13,10 +13,7 @@ type Forward struct {
 	wiki.Wiki
 	path   chan *wiki.Path
 	errors chan error
-	done   chan struct{}
-	wg     *sync.WaitGroup
-
-	v sync.Map
+	v      sync.Map
 }
 
 // NewForward returns an new instance of the Forward crawler.
@@ -25,24 +22,16 @@ func NewForward(w wiki.Wiki) *Forward {
 		Wiki:   w,
 		path:   make(chan *wiki.Path),
 		errors: make(chan error),
-		done:   make(chan struct{}),
-		wg:     &sync.WaitGroup{},
 		v:      sync.Map{},
 	}
 }
 
 // Run provides the implementation of the crawling algorithm.
-// It doesn't return any values. The result path can be obtained using the Path() method. All errors encountered can be retrieved using the Error() method.
-// When all work is completed, the Done() method can be used to signal the caller.
-func (f *Forward) Run(origin, destination string) {
-	f.wg.Add(1)
-	go func() {
-		defer f.wg.Done()
-		f.discover(origin, destination, nil)
-	}()
-
-	f.wg.Wait()
-	f.done <- struct{}{}
+// The result path can be obtained using the Path() method.
+// All errors encountered can be retrieved using the Error() method.
+// ctx can be used to impose timeout on Run.
+func (f *Forward) Run(ctx context.Context, origin, destination string) {
+	go f.discover(ctx, origin, destination, nil)
 }
 
 // Path returns a channel which receives the path result from the children goroutines.
@@ -55,19 +44,18 @@ func (f *Forward) Error() <-chan error {
 	return f.errors
 }
 
-// Done returns a channel which can be used to signify that the crawl is completed.
-func (f *Forward) Done() <-chan struct{} {
-	return f.done
-}
-
-func (f *Forward) discover(origin, destination string, intermediate *wiki.Path) {
-	// discover crawls from origin to destination using all the links found in the pages.
-	// for every page that it encounters:
-	// 1. it marks the page as visited by adding it to the 'v' map
-	// 2. it appends the page to the sequence of pages in the 'intermediate' path
-	// 3. if the page is the destination page, it returns the 'intermediate' path
-	// 4. if the page isn't the destination page and has no links, it returns the 'destination unreachable' error because it has reached a dead end on this path
-	// 5. otherwise, it creates a goroutine to crawl every link of the page
+// discover crawls from origin to destination using all the links found in the pages.
+// For every page, P, that it encounters:
+// 1. it appends the P to the sequence of pages in the 'intermediate' path
+// 2. it marks the P as visited by adding it to the 'v' map
+// 3. if P is the destination page, it returns the 'intermediate' path
+// 4. if P isn't the destination page and has no links, it's ignored. The goroutine is terminated.
+// 5. otherwise, for every link of P, the goroutine creates a new goroutine to crawl that linked page.
+func (f *Forward) discover(ctx context.Context, origin, destination string, intermediate *wiki.Path) {
+	if ctx.Err() != nil {
+		log.Instance().Debugf("Canceling crawl operation. Title=%q Reason=%q", origin, ctx.Err().Error())
+		return
+	}
 
 	page, err := f.FindPage(origin)
 	if err != nil {
@@ -83,11 +71,10 @@ func (f *Forward) discover(origin, destination string, intermediate *wiki.Path) 
 
 	if f.visited(origin) {
 		log.Instance().Warningf("Loop detected. Title=%q Predecessors=%q", page.Title, intermediate)
-		f.errors <- errors.LoopDetected{Path: intermediate}
 		return
 	}
 	f.addVisited(origin)
-	log.Instance().Infof("Found a new page. Title=%q Predecessors=%q", page.Title, intermediate)
+	log.Instance().Infof("Found page. Title=%q Predecessors=%q", page.Title, intermediate)
 
 	// found destination
 	if page.Title == destination {
@@ -99,17 +86,22 @@ func (f *Forward) discover(origin, destination string, intermediate *wiki.Path) 
 	// this page is a dead end and the racer can't reach the destination from this path.
 	if len(page.Links) == 0 {
 		log.Instance().Noticef("Dead end page. Title=%q Predecessors=%q", page.Title, intermediate)
-		f.errors <- errors.DestinationUnreachable{Destination: page.Title}
 		return
 	}
 
 	for _, link := range page.Links {
-		f.wg.Add(1)
 		go func(link string) {
-			defer f.wg.Done()
-			newPath := wiki.NewPath()
-			newPath.Clone(intermediate)
-			f.discover(link, destination, newPath)
+			log.Instance().Debugf("Starting crawl operation. Title=%q", link)
+			go func() {
+				newPath := wiki.NewPath()
+				newPath.Clone(intermediate)
+				f.discover(ctx, link, destination, newPath)
+			}()
+
+			select {
+			case <-ctx.Done():
+				log.Instance().Debugf("Finishing crawl operation. Title=%q Reason=%q", link, ctx.Err().Error())
+			}
 		}(link)
 	}
 }

@@ -1,8 +1,9 @@
 package wikiracer
 
 import (
-	"fmt"
+	"context"
 	"testing"
+	"time"
 
 	"github.com/ihcsim/wikiracer/errors"
 	"github.com/ihcsim/wikiracer/internal/crawler"
@@ -11,6 +12,8 @@ import (
 	"github.com/ihcsim/wikiracer/log"
 	"github.com/ihcsim/wikiracer/test"
 )
+
+var timeout = 500 * time.Millisecond
 
 func TestFindPath(t *testing.T) {
 	log.Instance().SetBackend(log.QuietBackend)
@@ -42,13 +45,29 @@ func TestFindPath(t *testing.T) {
 			}
 
 			for id, testCase := range testCases {
-				racer := &Racer{
-					Crawler:   crawler.NewForward(mockWiki),
-					Validator: &validator.InputValidator{mockWiki},
-				}
+				var (
+					racer = &Racer{
+						Crawler:   crawler.NewForward(mockWiki),
+						Validator: &validator.InputValidator{mockWiki},
+					}
 
-				if actual := racer.FindPath(testCase.origin, testCase.destination); testCase.expected != actual {
-					t.Errorf("Mismatch path. Test case: %d\nExpected: %s\nActual: %s", id, testCase.expected, actual)
+					result          = make(chan string)
+					ctx, cancelFunc = context.WithTimeout(context.Background(), timeout)
+				)
+				defer cancelFunc()
+
+				go func() {
+					result <- racer.FindPath(ctx, testCase.origin, testCase.destination)
+				}()
+
+				select {
+				case actual := <-result:
+					if testCase.expected != actual {
+						t.Errorf("Mismatch path. Test case: %d\nExpected: %s\nActual: %s", id, testCase.expected, actual)
+					}
+
+				case <-ctx.Done():
+					t.Fatalf("Test case %d timed out")
 				}
 			}
 		})
@@ -66,22 +85,36 @@ func TestFindPath(t *testing.T) {
 			}
 
 			for id, testCase := range testCases {
-				racer := &Racer{
-					Crawler:   crawler.NewForward(mockWiki),
-					Validator: &validator.InputValidator{mockWiki},
-				}
-
-				actual := racer.FindPath(testCase.origin, testCase.destination)
-				passed := false
-				for _, option := range testCase.expected {
-					if option == actual {
-						passed = true
-						break
+				var (
+					racer = &Racer{
+						Crawler:   crawler.NewForward(mockWiki),
+						Validator: &validator.InputValidator{mockWiki},
 					}
-				}
 
-				if !passed {
-					t.Errorf("Mismatch path. Test case: %d\nExpected either one of: %v\nActual: %s", id, testCase.expected, actual)
+					ctx, cancelFunc = context.WithTimeout(context.Background(), timeout)
+					result          = make(chan string)
+				)
+				defer cancelFunc()
+
+				go func() {
+					result <- racer.FindPath(ctx, testCase.origin, testCase.destination)
+				}()
+
+				select {
+				case actual := <-result:
+					passed := false
+					for _, option := range testCase.expected {
+						if option == actual {
+							passed = true
+							break
+						}
+					}
+
+					if !passed {
+						t.Errorf("Mismatch path. Test case: %d\nExpected either one of: %v\nActual: %s", id, testCase.expected, actual)
+					}
+				case <-ctx.Done():
+					t.Fatalf("Test case %d timed out")
 				}
 			}
 		})
@@ -101,14 +134,32 @@ func TestFindPath(t *testing.T) {
 		}
 
 		for id, testCase := range testCases {
-			racer := &Racer{
-				Crawler:   crawler.NewForward(mockWiki),
-				Validator: &validator.InputValidator{mockWiki},
-			}
+			var (
+				racer = &Racer{
+					Crawler:   crawler.NewForward(mockWiki),
+					Validator: &validator.InputValidator{mockWiki},
+				}
 
-			actual := racer.FindPath(testCase.origin, testCase.destination)
-			if fmt.Sprintf("%s", testCase.expected) != actual {
-				t.Errorf("Mismatch error. Test case: %d\nExpected: %s\nActual: %s", id, testCase.expected, actual)
+				actual          = make(chan string)
+				ctx, cancelFunc = context.WithTimeout(context.Background(), timeout)
+			)
+			defer cancelFunc()
+
+			go func() {
+				actual <- racer.FindPath(ctx, testCase.origin, testCase.destination)
+			}()
+
+			select {
+			case <-ctx.Done():
+				// the page is considered unreachable if racer can't find it before the context timed out
+				if actualErr := <-actual; actualErr != testCase.expected.Error() {
+					t.Errorf("Error mismatch.\nExpected: %s.\nActual: %s", testCase.expected, actualErr)
+				}
+			case v := <-actual:
+				// handle other non-timeout errors
+				if testCase.expected.Error() != v {
+					t.Errorf("Mismatch error. Test case: %d\nExpected: %s\nActual: %s", id, testCase.expected, v)
+				}
 			}
 		}
 	})

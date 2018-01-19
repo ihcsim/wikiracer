@@ -10,7 +10,7 @@ import (
 const (
 	logModule        = "racer"
 	logLevelDefault  = logging.INFO
-	logFormatDefault = "%{color}[%{level:.4s}] (%{shortpkg}/%{shortfile}) ▶ %{color:reset}%{message}"
+	logFormatDefault = "%{color}[%{level:.4s}] - %{id} (%{shortpkg}/%{shortfile}) ▶ %{color:reset}%{message}"
 )
 
 var (

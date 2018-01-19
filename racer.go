@@ -1,7 +1,7 @@
 package wikiracer
 
 import (
-	"fmt"
+	"context"
 
 	"github.com/ihcsim/wikiracer/errors"
 )
@@ -14,31 +14,34 @@ type Racer struct {
 }
 
 // FindPath attempts to find a path from the origin page to the destination page by traversing all the links that are encountered along the way.
-func (r *Racer) FindPath(origin, destination string) string {
+// If found, it returns the path from origin to destination.
+// Otherwise, if a path isn't found, a DestinationUnreachable error is returned.
+// The destination page is considered unreachable if racer can't find it before the context timed out.
+// Use ctx to impose timeout on FindPath.
+func (r *Racer) FindPath(ctx context.Context, origin, destination string) string {
+	cancelCtx, cancel := context.WithCancel(ctx)
+	defer cancel()
+
 	if err := r.Validate(origin, destination); err != nil {
-		return fmt.Sprintf("%s", err)
+		return err.Error()
 	}
 
 	if origin == destination {
 		return origin
 	}
 
-	go r.Run(origin, destination)
+	go r.Run(cancelCtx, origin, destination)
 
 	for {
 		select {
 		case path := <-r.Path():
-			return fmt.Sprintf("%s", path)
+			return path.String()
+
 		case err := <-r.Error():
-			switch err.(type) {
-			case errors.DestinationUnreachable:
-			case errors.LoopDetected:
-			default:
-				return fmt.Sprintf("%s", err)
-			}
-		case <-r.Done():
-			// if we received from done, it means all goroutines completed but no path was found.
-			return fmt.Sprintf("%s", errors.DestinationUnreachable{Destination: destination})
+			return err.Error()
+
+		case <-cancelCtx.Done():
+			return errors.DestinationUnreachable{Destination: destination}.Error()
 		}
 	}
 }
