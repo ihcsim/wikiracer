@@ -2,6 +2,7 @@ package wikiracer
 
 import (
 	"context"
+	"strings"
 
 	"github.com/ihcsim/wikiracer/errors"
 )
@@ -18,16 +19,16 @@ type Racer struct {
 // Otherwise, if a path isn't found, a DestinationUnreachable error is returned.
 // The destination page is considered unreachable if racer can't find it before the context timed out.
 // Use ctx to impose timeout on FindPath.
-func (r *Racer) FindPath(ctx context.Context, origin, destination string) string {
+func (r *Racer) FindPath(ctx context.Context, origin, destination string) *Result {
 	cancelCtx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
 	if err := r.Validate(origin, destination); err != nil {
-		return err.Error()
+		return &Result{Err: err}
 	}
 
 	if origin == destination {
-		return origin
+		return &Result{Path: strings.NewReader(origin)}
 	}
 
 	go r.Run(cancelCtx, origin, destination)
@@ -35,13 +36,13 @@ func (r *Racer) FindPath(ctx context.Context, origin, destination string) string
 	for {
 		select {
 		case path := <-r.Path():
-			return path.String()
+			return &Result{Path: strings.NewReader(path.String())}
 
 		case err := <-r.Error():
-			return err.Error()
+			return &Result{Err: err}
 
 		case <-cancelCtx.Done():
-			return errors.DestinationUnreachable{Destination: destination}.Error()
+			return &Result{Err: errors.DestinationUnreachable{Destination: destination}}
 		}
 	}
 }

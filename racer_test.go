@@ -2,6 +2,7 @@ package wikiracer
 
 import (
 	"context"
+	"io/ioutil"
 	"testing"
 	"time"
 
@@ -13,12 +14,13 @@ import (
 	"github.com/ihcsim/wikiracer/test"
 )
 
-var timeout = 500 * time.Millisecond
+var (
+	timeout  = 500 * time.Millisecond
+	mockWiki = test.NewMockWiki()
+)
 
 func TestFindPath(t *testing.T) {
 	log.Instance().SetBackend(log.QuietBackend)
-
-	mockWiki := test.NewMockWiki()
 
 	t.Run("Existent Pages", func(t *testing.T) {
 		t.Run("Single Path", func(t *testing.T) {
@@ -51,7 +53,7 @@ func TestFindPath(t *testing.T) {
 						Validator: &validator.InputValidator{mockWiki},
 					}
 
-					result          = make(chan string)
+					result          = make(chan *Result)
 					ctx, cancelFunc = context.WithTimeout(context.Background(), timeout)
 				)
 				defer cancelFunc()
@@ -62,8 +64,12 @@ func TestFindPath(t *testing.T) {
 
 				select {
 				case actual := <-result:
-					if testCase.expected != actual {
-						t.Errorf("Mismatch path. Test case: %d\nExpected: %s\nActual: %s", id, testCase.expected, actual)
+					b, err := ioutil.ReadAll(actual.Path)
+					if err != nil {
+						t.Fatal("Unexpected error: ", err)
+					}
+					if testCase.expected != string(b) {
+						t.Errorf("Mismatch path. Test case: %d\nExpected: %s\nActual: %s", id, testCase.expected, b)
 					}
 
 				case <-ctx.Done():
@@ -92,7 +98,7 @@ func TestFindPath(t *testing.T) {
 					}
 
 					ctx, cancelFunc = context.WithTimeout(context.Background(), timeout)
-					result          = make(chan string)
+					result          = make(chan *Result)
 				)
 				defer cancelFunc()
 
@@ -102,16 +108,21 @@ func TestFindPath(t *testing.T) {
 
 				select {
 				case actual := <-result:
+					b, err := ioutil.ReadAll(actual.Path)
+					if err != nil {
+						t.Fatal("Unexpected error: ", err)
+					}
+
 					passed := false
 					for _, option := range testCase.expected {
-						if option == actual {
+						if option == string(b) {
 							passed = true
 							break
 						}
 					}
 
 					if !passed {
-						t.Errorf("Mismatch path. Test case: %d\nExpected either one of: %v\nActual: %s", id, testCase.expected, actual)
+						t.Errorf("Mismatch path. Test case: %d\nExpected either one of: %v\nActual: %s", id, testCase.expected, b)
 					}
 				case <-ctx.Done():
 					t.Fatalf("Test case %d timed out")
@@ -140,26 +151,43 @@ func TestFindPath(t *testing.T) {
 					Validator: &validator.InputValidator{mockWiki},
 				}
 
-				actual          = make(chan string)
+				result          = make(chan *Result)
 				ctx, cancelFunc = context.WithTimeout(context.Background(), timeout)
 			)
 			defer cancelFunc()
 
 			go func() {
-				actual <- racer.FindPath(ctx, testCase.origin, testCase.destination)
+				result <- racer.FindPath(ctx, testCase.origin, testCase.destination)
 			}()
 
 			select {
 			case <-ctx.Done():
 				// the page is considered unreachable if racer can't find it before the context timed out
-				if actualErr := <-actual; actualErr != testCase.expected.Error() {
-					t.Errorf("Error mismatch.\nExpected: %s.\nActual: %s", testCase.expected, actualErr)
+				if actual := <-result; actual.Err != testCase.expected {
+					t.Errorf("Error mismatch.\nExpected: %s.\nActual: %s", testCase.expected, actual.Err)
 				}
-			case v := <-actual:
+			case actual := <-result:
 				// handle other non-timeout errors
-				if testCase.expected.Error() != v {
-					t.Errorf("Mismatch error. Test case: %d\nExpected: %s\nActual: %s", id, testCase.expected, v)
+				switch cast := actual.Err.(type) {
+				case errors.PageNotFound:
+					if testCase.expected.Error() != cast.Error() {
+						t.Errorf("Mismatch error. Test case: %d\nExpected: %s\nActual: %s", id, testCase.expected, cast)
+					}
+
+				case errors.DestinationUnreachable:
+					if testCase.expected != cast {
+						t.Errorf("Mismatch error. Test case: %d\nExpected: %s\nActual: %s", id, testCase.expected, cast)
+					}
+
+				case errors.InvalidEmptyInput:
+					if testCase.expected != cast {
+						t.Errorf("Mismatch error. Test case: %d\nExpected: %s\nActual: %s", id, testCase.expected, cast)
+					}
+
+				default:
+					t.Fatalf("Type assertion failed: %T", cast)
 				}
+
 			}
 		}
 	})
