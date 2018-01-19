@@ -3,6 +3,7 @@ package wikiracer
 import (
 	"context"
 	"strings"
+	"time"
 
 	"github.com/ihcsim/wikiracer/errors"
 )
@@ -12,6 +13,17 @@ import (
 type Racer struct {
 	Crawler
 	Validator
+}
+
+// TimedFindPath captues the duration to crawl from the origin page to the destination page.
+// If a timeout is specified in ctx, then the result duration will not exceed the timeout.
+func (r *Racer) TimedFindPath(ctx context.Context, origin, destination string) *Result {
+	start := time.Now()
+	result := r.FindPath(ctx, origin, destination)
+	end := time.Now()
+
+	result.Duration = end.Sub(start)
+	return result
 }
 
 // FindPath attempts to find a path from the origin page to the destination page by traversing all the links that are encountered along the way.

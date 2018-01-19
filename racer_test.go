@@ -192,3 +192,31 @@ func TestFindPath(t *testing.T) {
 		}
 	})
 }
+
+func TestTimedFindPath(t *testing.T) {
+	var (
+		racer = &Racer{
+			Crawler:   crawler.NewForward(mockWiki),
+			Validator: &validator.InputValidator{mockWiki},
+		}
+
+		ctx          = context.Background()
+		origin       = "Mike Tyson"
+		destination  = "Segment"
+		expectedPath = "Mike Tyson -> Alexander the Great -> Greek language -> Fruit anatomy -> Segment"
+	)
+
+	actual := racer.TimedFindPath(ctx, origin, destination)
+	if actual.Err != nil {
+		t.Fatal("Unexpected error: ", actual.Err)
+	}
+
+	actualPath, err := ioutil.ReadAll(actual.Path)
+	if err != nil {
+		t.Fatal("Unexpected error: ", err)
+	}
+
+	if string(actualPath) != expectedPath {
+		t.Errorf("Mismatch path.\nExpected %q\nActual: %q", expectedPath, actualPath)
+	}
+}
