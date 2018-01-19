@@ -48,11 +48,7 @@ func TestFindPath(t *testing.T) {
 
 			for id, testCase := range testCases {
 				var (
-					racer = &Racer{
-						Crawler:   crawler.NewForward(mockWiki),
-						Validator: &validator.InputValidator{mockWiki},
-					}
-
+					racer           = New(crawler.NewForward(mockWiki), &validator.InputValidator{mockWiki})
 					result          = make(chan *Result)
 					ctx, cancelFunc = context.WithTimeout(context.Background(), timeout)
 				)
@@ -92,11 +88,7 @@ func TestFindPath(t *testing.T) {
 
 			for id, testCase := range testCases {
 				var (
-					racer = &Racer{
-						Crawler:   crawler.NewForward(mockWiki),
-						Validator: &validator.InputValidator{mockWiki},
-					}
-
+					racer           = New(crawler.NewForward(mockWiki), &validator.InputValidator{mockWiki})
 					ctx, cancelFunc = context.WithTimeout(context.Background(), timeout)
 					result          = make(chan *Result)
 				)
@@ -146,11 +138,7 @@ func TestFindPath(t *testing.T) {
 
 		for id, testCase := range testCases {
 			var (
-				racer = &Racer{
-					Crawler:   crawler.NewForward(mockWiki),
-					Validator: &validator.InputValidator{mockWiki},
-				}
-
+				racer           = New(crawler.NewForward(mockWiki), &validator.InputValidator{mockWiki})
 				result          = make(chan *Result)
 				ctx, cancelFunc = context.WithTimeout(context.Background(), timeout)
 			)
@@ -195,11 +183,7 @@ func TestFindPath(t *testing.T) {
 
 func TestTimedFindPath(t *testing.T) {
 	var (
-		racer = &Racer{
-			Crawler:   crawler.NewForward(mockWiki),
-			Validator: &validator.InputValidator{mockWiki},
-		}
-
+		racer        = New(crawler.NewForward(mockWiki), &validator.InputValidator{mockWiki})
 		ctx          = context.Background()
 		origin       = "Mike Tyson"
 		destination  = "Segment"

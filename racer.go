@@ -8,16 +8,21 @@ import (
 	"github.com/ihcsim/wikiracer/errors"
 )
 
-// Racer traverses from a wiki page to another using only links.
+// WikiRacer traverses from a wiki page to another using only links.
 // It times the traversal journey.
-type Racer struct {
+type WikiRacer struct {
 	Crawler
 	Validator
 }
 
+// New returns a new instance of the WikiRacer.
+func New(c Crawler, v Validator) *WikiRacer {
+	return &WikiRacer{Crawler: c, Validator: v}
+}
+
 // TimedFindPath captues the duration to crawl from the origin page to the destination page.
 // If a timeout is specified in ctx, then the result duration will not exceed the timeout.
-func (r *Racer) TimedFindPath(ctx context.Context, origin, destination string) *Result {
+func (r *WikiRacer) TimedFindPath(ctx context.Context, origin, destination string) *Result {
 	start := time.Now()
 	result := r.FindPath(ctx, origin, destination)
 	end := time.Now()
@@ -31,7 +36,7 @@ func (r *Racer) TimedFindPath(ctx context.Context, origin, destination string) *
 // Otherwise, if a path isn't found, a DestinationUnreachable error is returned.
 // The destination page is considered unreachable if racer can't find it before the context timed out.
 // Use ctx to impose timeout on FindPath.
-func (r *Racer) FindPath(ctx context.Context, origin, destination string) *Result {
+func (r *WikiRacer) FindPath(ctx context.Context, origin, destination string) *Result {
 	cancelCtx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
