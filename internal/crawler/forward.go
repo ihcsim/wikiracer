@@ -45,12 +45,12 @@ func (f *Forward) Error() <-chan error {
 }
 
 // discover crawls from origin to destination using all the links found in the pages.
-// For every page, P, that it encounters:
-// 1. it appends the P to the sequence of pages in the 'intermediate' path
-// 2. it marks the P as visited by adding it to the 'v' map
-// 3. if P is the destination page, it returns the 'intermediate' path
-// 4. if P isn't the destination page and has no links, it's ignored. The goroutine is terminated.
-// 5. otherwise, for every link of P, the goroutine creates a new goroutine to crawl that linked page.
+// For every page P that it encounters:
+// 1. `P` is appended to the sequence of pages in the _intermediate_ path.
+// 2. `P` is marked as a visited page.
+// 3. if `P` is the destination page, the _intermediate_ path is returned.
+// 4. if `P` isn't the destination page and has no links, the goroutine terminates.
+// 5. otherwise, for every link of `P`, the goroutine creates a new goroutine to crawl that linked page.
 func (f *Forward) discover(ctx context.Context, origin, destination string, intermediate *wiki.Path) {
 	if ctx.Err() != nil {
 		log.Instance().Debugf("Canceling crawl operation. Title=%q Reason=%q", origin, ctx.Err().Error())

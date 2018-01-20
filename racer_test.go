@@ -175,7 +175,6 @@ func TestFindPath(t *testing.T) {
 				default:
 					t.Fatalf("Type assertion failed: %T", cast)
 				}
-
 			}
 		}
 	})
