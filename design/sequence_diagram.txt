@@ -1,0 +1,96 @@
+title WikiRacer
+fontfamily mono
+
+participant client
+participant WikiRacer
+participant InputValidator
+participant ForwardCrawler
+participant Context
+participant Result
+
+note left of InputValidator #silver: implements the Validator interface
+note right of ForwardCrawler #silver: implements the Crawler interface
+
+client->InputValidator: <<create>>
+client<--InputValidator:
+client->ForwardCrawler: <<create>>
+client<--ForwardCrawler:
+client->WikiRacer: <<create>> New(forwardCrawler, inputValidator)
+activate WikiRacer #violet
+client<--WikiRacer:
+
+client->WikiRacer: TimedFindPath(ctx, origin, destination)
+
+WikiRacer->WikiRacer: FindPath(ctx, origin, destination)
+
+WikiRacer->Context: <<create>> WithCancel(ctx)
+activate Context #blue
+note left of Context #silver: Returns a context object\nwith its cancel function.\nThis cancel function is used\nto terminate all sub-goroutines.
+WikiRacer<--Context: cancelCtx, cancel
+
+WikiRacer->InputValidator: Validate(origin, destination)
+activate InputValidator #yellow
+WikiRacer<--InputValidator: err
+deactivate InputValidator
+
+opt err != nil
+  WikiRacer-->client: err
+end 
+
+opt origin == desination
+  WikiRacer-->client: origin
+end 
+
+WikiRacer->ForwardCrawler:Run(cancelCtx, origin, destination)
+par
+  ForwardCrawler->ForwardCrawler:discover(cancelCtx, origin, destination, intermediatePath)
+end 
+
+loop true
+  note over client #silver: This loop terminates when it receives from one of\nthese channels:\n- racer.Path()\n- racer.Error()\n- cancelCtx.Done()
+
+  autonumber 1
+  WikiRacer->WikiRacer: Path()
+  activate WikiRacer #grey
+  deactivateafter WikiRacer
+
+  opt path != nil
+    WikiRacer->*Result: <<create>>
+    activate Result #orange
+    WikiRacer<--Result: result_path
+    deactivate Result
+    client<--WikiRacer: result_path
+  end
+
+  autonumber 1
+  WikiRacer->WikiRacer: Error()
+  activate WikiRacer #grey
+  deactivateafter WikiRacer
+
+  opt path == nil && err != nil
+    WikiRacer->*Result: <<create>>
+    activate Result #orange
+    WikiRacer<--Result: result_err
+    deactivate Result
+    client<--WikiRacer: result_err
+  end 
+
+  autonumber 1
+  WikiRacer->Context: Done()
+  activate Context #grey
+  WikiRacer<--Context: done
+  deactivate Context #grey
+
+  opt path == nil && err == nil && done != nil
+    note right of client #silver: done is not nil when either:\n- the context timed out or\n- the context cancel() fucntion is called 
+    WikiRacer->*Result: <<create>>
+    activate Result #orange
+    WikiRacer<--Result: result_destination_unreachable_err
+    deactivate Result
+    client<--WikiRacer: result_destination_unreachable_err
+  end
+end
+
+WikiRacer->Context: cancel()
+deactivate Context
+deactivate WikiRacer

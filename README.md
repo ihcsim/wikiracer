@@ -70,6 +70,10 @@ In short, for every page `P` that the `Forward` crawler encounters, it creates a
 
 An input validator implementation can be found in the `wikiracer/internal/validator` package.
 
+This is the sequence diagram showing all the method calls between a client, the wikiracer, validator, crawler and context objects.
+
+![sequence diagram](design/sequence_diagram.png)
+
 ## Example
 The following is a code example on how to use the `Wikiracer` with timeout.
 ```
