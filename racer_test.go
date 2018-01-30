@@ -2,7 +2,6 @@ package wikiracer
 
 import (
 	"context"
-	"io/ioutil"
 	"testing"
 	"time"
 
@@ -60,12 +59,8 @@ func TestFindPath(t *testing.T) {
 
 				select {
 				case actual := <-result:
-					b, err := ioutil.ReadAll(actual.Path)
-					if err != nil {
-						t.Fatal("Unexpected error: ", err)
-					}
-					if testCase.expected != string(b) {
-						t.Errorf("Mismatch path. Test case: %d\nExpected: %s\nActual: %s", id, testCase.expected, b)
+					if testCase.expected != string(actual.Path) {
+						t.Errorf("Mismatch path. Test case: %d\nExpected: %s\nActual: %s", id, testCase.expected, actual.Path)
 					}
 
 				case <-ctx.Done():
@@ -100,21 +95,16 @@ func TestFindPath(t *testing.T) {
 
 				select {
 				case actual := <-result:
-					b, err := ioutil.ReadAll(actual.Path)
-					if err != nil {
-						t.Fatal("Unexpected error: ", err)
-					}
-
 					passed := false
 					for _, option := range testCase.expected {
-						if option == string(b) {
+						if option == string(actual.Path) {
 							passed = true
 							break
 						}
 					}
 
 					if !passed {
-						t.Errorf("Mismatch path. Test case: %d\nExpected either one of: %v\nActual: %s", id, testCase.expected, b)
+						t.Errorf("Mismatch path. Test case: %d\nExpected either one of: %v\nActual: %s", id, testCase.expected, actual.Path)
 					}
 				case <-ctx.Done():
 					t.Fatalf("Test case %d timed out")
@@ -194,12 +184,7 @@ func TestTimedFindPath(t *testing.T) {
 		t.Fatal("Unexpected error: ", actual.Err)
 	}
 
-	actualPath, err := ioutil.ReadAll(actual.Path)
-	if err != nil {
-		t.Fatal("Unexpected error: ", err)
-	}
-
-	if string(actualPath) != expectedPath {
-		t.Errorf("Mismatch path.\nExpected %q\nActual: %q", expectedPath, actualPath)
+	if string(actual.Path) != expectedPath {
+		t.Errorf("Mismatch path.\nExpected %q\nActual: %q", expectedPath, actual.Path)
 	}
 }

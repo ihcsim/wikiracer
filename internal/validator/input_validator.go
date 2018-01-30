@@ -10,6 +10,11 @@ type InputValidator struct {
 	wiki.Wiki
 }
 
+// NewInputValidator returns a new instance of InputValidator.
+func NewInputValidator(w wiki.Wiki) *InputValidator {
+	return &InputValidator{w}
+}
+
 // Validate contains rules used to validate the origin and destination inputs.
 // An error is returned if either the inputs failed the rules.
 func (v *InputValidator) Validate(origin, destination string) error {

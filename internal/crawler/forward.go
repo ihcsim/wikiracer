@@ -70,22 +70,22 @@ func (f *Forward) discover(ctx context.Context, origin, destination string, inte
 	intermediate.AddPage(page)
 
 	if f.visited(origin) {
-		log.Instance().Warningf("Loop detected. Title=%q Predecessors=%q", page.Title, intermediate)
+		log.Instance().Debugf("Loop detected. Title=%q Predecessors=%q", page.Title, intermediate)
 		return
 	}
 	f.addVisited(origin)
-	log.Instance().Infof("Found page. Title=%q Predecessors=%q", page.Title, intermediate)
+	log.Instance().Debugf("Found page. Title=%q Predecessors=%q", page.Title, intermediate)
 
 	// found destination
 	if page.Title == destination {
-		log.Instance().Infof("Found destination. Title=%q Predecessors=%q", page.Title, intermediate)
+		log.Instance().Debugf("Found destination. Title=%q Predecessors=%q", page.Title, intermediate)
 		f.path <- intermediate
 		return
 	}
 
 	// this page is a dead end and the racer can't reach the destination from this path.
 	if len(page.Links) == 0 {
-		log.Instance().Noticef("Dead end page. Title=%q Predecessors=%q", page.Title, intermediate)
+		log.Instance().Debugf("Dead end page. Title=%q Predecessors=%q", page.Title, intermediate)
 		return
 	}
 

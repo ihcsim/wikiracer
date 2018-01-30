@@ -2,7 +2,6 @@ package wikiracer
 
 import (
 	"context"
-	"strings"
 	"time"
 
 	"github.com/ihcsim/wikiracer/errors"
@@ -45,7 +44,7 @@ func (r *WikiRacer) FindPath(ctx context.Context, origin, destination string) *R
 	}
 
 	if origin == destination {
-		return &Result{Path: strings.NewReader(origin)}
+		return &Result{Path: []byte(origin)}
 	}
 
 	go r.Run(cancelCtx, origin, destination)
@@ -53,7 +52,7 @@ func (r *WikiRacer) FindPath(ctx context.Context, origin, destination string) *R
 	for {
 		select {
 		case path := <-r.Path():
-			return &Result{Path: strings.NewReader(path.String())}
+			return &Result{Path: []byte(path.String())}
 
 		case err := <-r.Error():
 			return &Result{Err: err}
