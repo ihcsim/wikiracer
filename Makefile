@@ -1,4 +1,4 @@
 .PHONY: test
 
 test:
-	go test -v -cover -race ./...
+	govendor test +local -cover -race
