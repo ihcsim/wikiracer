@@ -1,4 +1,7 @@
 # wikiracer
+
+[ ![Codeship Status for ihcsim/wikiracer](https://app.codeship.com/projects/e02796a0-e7a1-0135-e6d4-32aa37740c70/status?branch=master)](https://app.codeship.com/projects/269561)
+
 wikiracer attempts to find a path from one Wikipedia page to another using only links in the pages. The starting page is known as the _origin_ and the target page is known as the _destination_.
 
 ## Table of Content
