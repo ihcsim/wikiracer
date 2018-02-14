@@ -19,7 +19,7 @@ The following is a list of software prerequisites for development of this projec
 
 * [golang 1.9.2](https://golang.org/dl/)
 * [make](http://tldp.org/HOWTO/Software-Building-HOWTO-3.html)
-* [govendor for development](https://github.com/kardianos/govendor)
+* [govendor](https://github.com/kardianos/govendor)
 
 ## Getting Started
 Use the following commands to get started:
@@ -29,7 +29,28 @@ $ git clone git@github.com:ihcsim/wikiracer.git
 
 # run all the tests
 $ make test
+
+# run the server
+$ go run server/main.go
+2018/02/13 21:18:02 [INFO] - 1 (main/main.go:27) ▶ Starting up server at port 8080...
 ```
+
+The following code snippet shows an example of using `curl` as a test client against the wikiracer server:
+```
+# curl the server from another terminal
+$ curl "localhost:8080?origin=Mike%20Tyson&destination=Vancouver"
+Path: "Mike Tyson -> 1984 Summer Olympics -> 7-Eleven -> Big C -> Vancouver", Duration: 134.916µs
+```
+
+The server outputs log lines that looks like:
+```
+$ go run main.go
+2018/02/13 21:18:02 [INFO] - 1 (main/main.go:27) ▶ Starting up server at port 8080...
+2018/02/13 21:18:30 [INFO] - 2 (main/main.go:50) ▶ "Mike Tyson" -> "Vancouver": Starting...
+2018/02/13 21:18:30 [INFO] - 3 (main/main.go:66) ▶ "Mike Tyson" -> "Vancouver": SUCCESS. Path: "Mike Tyson -> 1984 Summer Olympics -> 7-Eleven -> Big C -> Vancouver", Duration: 134.916µs
+```
+
+The server's log level can be altered using the environment variable `WIKIRACER_LOG_LEVEL`.
 
 ## Highlights
 Here are some highlights of Wikiracer:
