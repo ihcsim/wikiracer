@@ -50,8 +50,6 @@ $ go run main.go
 2018/02/13 21:18:30 [INFO] - 3 (main/main.go:66) ▶ "Mike Tyson" -> "Vancouver": SUCCESS. Path: "Mike Tyson -> 1984 Summer Olympics -> 7-Eleven -> Big C -> Vancouver", Duration: 134.916µs
 ```
 
-The server's log level can be altered using the environment variable `WIKIRACER_LOG_LEVEL`.
-
 ## Highlights
 Here are some highlights of Wikiracer:
 
@@ -156,6 +154,24 @@ Query Parameter  | Description
 `utf8`           | Encodes most non-ASCII characters as UTF-8 instead of replacing them with hexadecimal escape sequences. More info [here](https://www.mediawiki.org/wiki/API:Data_formats#JSON_parameters).
 
 Often a response may not contain all the results of a query. If more results can be retrieved, the response usually contains the `continue` key. The value of this key (usually a JSON object) can be appended to the endpoint to retrieve the remaining query results.
+
+## Logging
+The server's log level can be altered using the environment variable `WIKIRACER_LOG_LEVEL`. The list of support log levels are:
+* CRITICAL
+* ERROR
+* WARNING
+* NOTICE
+* INFO
+* DEBUG
+
+## Profiling
+To generate profiling data for pprof visualization, start the `net/http/pprof` HTTP server at port 6060:
+```
+$ go run pprof/main.go
+2018/02/14 20:39:41 [INFO] - 1 (main/main.go:13) ▶ Starting profiling server at port 6060...
+```
+
+The profiling data can be viewed from your browser at http://localhost:6060/debug/pprof/
 
 ## Testing
 The `test` package provides an in-memory mock wiki which can be used for testing.

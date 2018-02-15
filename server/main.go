@@ -12,6 +12,8 @@ import (
 	"github.com/ihcsim/wikiracer/internal/validator"
 	"github.com/ihcsim/wikiracer/log"
 	"github.com/ihcsim/wikiracer/test"
+
+	_ "net/http/pprof"
 )
 
 const (
@@ -19,13 +21,21 @@ const (
 	queryParameterDestination = "destination"
 
 	serverPort = "8080"
+	pprofPort  = "6060"
 )
 
 var timeout = time.Second
 
 func main() {
+	go func() {
+		log.Instance().Infof("Starting profiling server at port %s...", pprofPort)
+		if err := http.ListenAndServe(":"+pprofPort, nil); err != nil {
+			log.Instance().Fatal(err)
+		}
+	}()
+
 	log.Instance().Infof("Starting up server at port %s...", serverPort)
-	http.HandleFunc("/", timedFindPath)
+	http.HandleFunc("/wikiracer", timedFindPath)
 	if err := http.ListenAndServe(":"+serverPort, nil); err != nil {
 		log.Instance().Fatal(err)
 	}
