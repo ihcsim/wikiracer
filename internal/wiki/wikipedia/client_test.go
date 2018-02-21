@@ -3,12 +3,12 @@ package wikipedia
 import "testing"
 
 func TestFindPage(t *testing.T) {
-	client, err := New()
+	client, err := NewClient()
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	page, err := client.FindPage("Mike Tyson")
+	page, err := client.FindPage("Mike Tyson", "")
 	if err != nil {
 		t.Fatal(err)
 	}

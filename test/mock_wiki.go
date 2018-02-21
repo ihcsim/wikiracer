@@ -37,7 +37,7 @@ func NewMockWiki() *MockWiki {
 
 // FindPage returns the page with the given title, if it exists.
 // Otherwise, it returns a 'page not found' error.
-func (m *MockWiki) FindPage(title string) (*wiki.Page, error) {
+func (m *MockWiki) FindPage(title, nextBatch string) (*wiki.Page, error) {
 	page, exist := m.pages[title]
 	if !exist {
 		return nil, errors.PageNotFound{wiki.Page{Title: title}}

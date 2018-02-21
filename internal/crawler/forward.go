@@ -57,7 +57,7 @@ func (f *Forward) discover(ctx context.Context, origin, destination string, inte
 		return
 	}
 
-	page, err := f.FindPage(origin)
+	page, err := f.FindPage(origin, "")
 	if err != nil {
 		log.Instance().Errorf("%s", err)
 		f.errors <- err

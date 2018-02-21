@@ -4,5 +4,5 @@ package wiki
 type Wiki interface {
 
 	// FindPage returns the page of the given title.
-	FindPage(title string) (*Page, error)
+	FindPage(title, nextBatch string) (*Page, error)
 }

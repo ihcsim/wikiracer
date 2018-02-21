@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 
+	"github.com/ihcsim/wikiracer/errors"
 	"github.com/ihcsim/wikiracer/internal/wiki"
 	"github.com/sadbox/mediawiki"
 )
@@ -19,36 +20,73 @@ const (
 
 // Client can communicate with the Wikipedia URL.
 type Client struct {
-	*mediawiki.MWApi
+	client *mediawiki.MWApi
+	api    apiFunc
 }
 
-// New creates a new instanc of Client.
-func New() (*Client, error) {
-	api, err := mediawiki.New(url, userAgent)
-	return &Client{api}, err
+// NewClient creates a new instanc of Client.
+func NewClient() (*Client, error) {
+	c, err := mediawiki.New(url, userAgent)
+	return &Client{
+		client: c,
+		api:    (*mediawiki.MWApi).API,
+	}, err
 }
+
+type apiFunc func(api *mediawiki.MWApi, values ...map[string]string) ([]byte, error)
 
 // FindPage returns the page of the given title.
-func (c *Client) FindPage(title string) (*wiki.Page, error) {
-	response, err := c.api(title)
+func (c *Client) FindPage(title, nextBatch string) (*wiki.Page, error) {
+	response, err := c.query(title, nextBatch)
 	if err != nil {
 		return nil, err
 	}
 
-	for _, page := range response.Result.Pages {
-		for _, link := range page.Links {
-			fmt.Printf("%+v\n", link)
-		}
+	page := response.Result.Pages[0]
+	if page.Missing {
+		return nil, errors.PageNotFound{wiki.Page{Title: title}}
 	}
 
-	// handle continue
+	// the links in a page are usually returned in batches.
+	// when `batchcomplete` is set in the response, it implies that the server has returned the last batch of links for this page.
+	// when `plcontinue` is set in the response, it implies that there are more links yet to be fetched.
 
-	// handle batchcomplete
+	var result *wiki.Page
+	if response.Batchcomplete {
+		var links []string
+		for _, link := range page.Links {
+			links = append(links, link.Title)
+		}
 
-	return nil, nil
+		result = &wiki.Page{
+			ID:        response.Result.Pages[0].Pageid,
+			Title:     response.Result.Pages[0].Title,
+			Namespace: response.Result.Pages[0].Ns,
+			Links:     links,
+		}
+		return result, nil
+	}
+
+	if response.Next != nil && response.Next.Plcontinue != "" {
+		partial, err := c.FindPage(title, response.Next.Plcontinue)
+		if err != nil {
+			return nil, err
+		}
+
+		fmt.Printf(">> %+v\n", partial)
+		result = &wiki.Page{
+			ID:        partial.ID,
+			Title:     partial.Title,
+			Namespace: partial.Namespace,
+			Links:     []string{},
+		}
+		result.Links = append(result.Links, partial.Links...)
+	}
+
+	return result, nil
 }
 
-func (c *Client) api(title string) (*Response, error) {
+func (c *Client) query(title, plcontinue string) (*Response, error) {
 	query := map[string]string{
 		"action":        "query",
 		"prop":          "links",
@@ -60,7 +98,12 @@ func (c *Client) api(title string) (*Response, error) {
 		"redirects":     "true",
 		"utf8":          "true",
 	}
-	content, err := c.API(query)
+
+	if plcontinue != "" {
+		query["plcontinue"] = plcontinue
+	}
+
+	content, err := c.api(c.client, query)
 	if err != nil {
 		return nil, err
 	}

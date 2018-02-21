@@ -10,8 +10,8 @@ import (
 	"github.com/ihcsim/wikiracer/errors"
 	"github.com/ihcsim/wikiracer/internal/crawler"
 	"github.com/ihcsim/wikiracer/internal/validator"
+	"github.com/ihcsim/wikiracer/internal/wiki/wikipedia"
 	"github.com/ihcsim/wikiracer/log"
-	"github.com/ihcsim/wikiracer/test"
 
 	_ "net/http/pprof"
 )
@@ -42,8 +42,13 @@ func main() {
 }
 
 func timedFindPath(w http.ResponseWriter, req *http.Request) {
+	wiki, err := wikipedia.NewClient()
+	if err != nil {
+		response(w, http.StatusInternalServerError, []byte(err.Error()))
+		return
+	}
+
 	var (
-		wiki      = test.NewMockWiki()
 		crawler   = crawler.NewForward(wiki)
 		validator = validator.NewInputValidator(wiki)
 	)
