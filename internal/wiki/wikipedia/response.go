@@ -27,7 +27,7 @@ type NextBatch struct {
 type Query struct {
 	// Redirects represents any URL redirect that Wikipedia performed before the result is retrieved. Wikipedia performs URL redirects for certain pages that may be known by multiple titles.
 	// For more information on how 'redirect' works, refer to https://en.wikipedia.org/wiki/Help:Redirect
-	Redirects []*Redirect
+	Redirects []*Redirect `json:"",omitempty`
 
 	// Pages is the batch of pages received from the Wikipedia.
 	Pages []*Page

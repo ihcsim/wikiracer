@@ -2,7 +2,6 @@ package wikipedia
 
 import (
 	"encoding/json"
-	"fmt"
 
 	"github.com/ihcsim/wikiracer/errors"
 	"github.com/ihcsim/wikiracer/internal/wiki"
@@ -47,23 +46,22 @@ func (c *Client) FindPage(title, nextBatch string) (*wiki.Page, error) {
 		return nil, errors.PageNotFound{wiki.Page{Title: title}}
 	}
 
+	var links []string
+	for _, link := range page.Links {
+		links = append(links, link.Title)
+	}
+	result := &wiki.Page{
+		ID:        response.Result.Pages[0].Pageid,
+		Title:     response.Result.Pages[0].Title,
+		Namespace: response.Result.Pages[0].Ns,
+		Links:     links,
+	}
+
 	// the links in a page are usually returned in batches.
 	// when `batchcomplete` is set in the response, it implies that the server has returned the last batch of links for this page.
 	// when `plcontinue` is set in the response, it implies that there are more links yet to be fetched.
 
-	var result *wiki.Page
 	if response.Batchcomplete {
-		var links []string
-		for _, link := range page.Links {
-			links = append(links, link.Title)
-		}
-
-		result = &wiki.Page{
-			ID:        response.Result.Pages[0].Pageid,
-			Title:     response.Result.Pages[0].Title,
-			Namespace: response.Result.Pages[0].Ns,
-			Links:     links,
-		}
 		return result, nil
 	}
 
@@ -73,13 +71,6 @@ func (c *Client) FindPage(title, nextBatch string) (*wiki.Page, error) {
 			return nil, err
 		}
 
-		fmt.Printf(">> %+v\n", partial)
-		result = &wiki.Page{
-			ID:        partial.ID,
-			Title:     partial.Title,
-			Namespace: partial.Namespace,
-			Links:     []string{},
-		}
 		result.Links = append(result.Links, partial.Links...)
 	}
 
