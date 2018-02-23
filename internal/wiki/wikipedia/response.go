@@ -6,11 +6,17 @@ type Response struct {
 	Next *NextBatch `json:"continue",omitempty`
 
 	// Result contains pages data received from the Wikipedia. If an URL redirect was performed by wikipedia before the result is retrieved, a 'Redirect' block will be included.
-	Result *Query `json:"query"`
+	Result *Query `json:"query",omitempty`
 
 	// Batchcomplete is true if there are no more subsequent batches.
 	// Otherwise, it's omitted.
-	Batchcomplete bool `json:"batchcomplete",omitempty`
+	Batchcomplete bool `json:"",omitempty`
+
+	// Errors is a list of errors returned by the Wikipedia.
+	Errors []*ResponseError `json:"",omitempty`
+
+	// Warnings is a list of warnings returned by the Wikipedia.
+	Warnings *ResponseWarnings `json:"",omitempty`
 }
 
 // NextBatch points to the next batch of result.
@@ -67,4 +73,34 @@ type Link struct {
 
 	// Title is the title of the linked page.
 	Title string
+}
+
+// ResponseError is a error returned by the Wikipedia.
+type ResponseError struct {
+	// Code is the error code.
+	Code string
+
+	// Text provides the error message.
+	Text string
+}
+
+// ResponseWarnings are warnings returned by the Wikipedia.
+type ResponseWarnings struct {
+	// Main is the main warning.
+	Main *MainWarning `json:"",omitempty`
+
+	// Query is query-related warning
+	Query *QueryWarning `json:"",omitempty`
+}
+
+// MainWarning is the warning returned by the Wikipedia 'main' module.
+type MainWarning struct {
+	// Warnings are warning messages.
+	Warnings string
+}
+
+// QueryWarning is the query-related warning
+type QueryWarning struct {
+	// Warnings are warning messages.
+	Warnings string
 }

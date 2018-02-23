@@ -2,6 +2,7 @@ package wikipedia
 
 import (
 	"encoding/json"
+	"fmt"
 
 	"github.com/ihcsim/wikiracer/errors"
 	"github.com/ihcsim/wikiracer/internal/wiki"
@@ -38,6 +39,16 @@ type apiFunc func(api *mediawiki.MWApi, values ...map[string]string) ([]byte, er
 func (c *Client) FindPage(title, nextBatch string) (*wiki.Page, error) {
 	response, err := c.query(title, nextBatch)
 	if err != nil {
+		return nil, err
+	}
+
+	if response.Errors != nil {
+		err := handleErrors(response.Errors)
+		return nil, err
+	}
+
+	if response.Warnings != nil {
+		err := handleWarnings(response.Warnings)
 		return nil, err
 	}
 
@@ -105,4 +116,26 @@ func (c *Client) query(title, plcontinue string) (*Response, error) {
 	}
 
 	return &response, nil
+}
+
+func handleErrors(errors []*ResponseError) error {
+	err := &serverError{}
+	for _, e := range errors {
+		err.msg += fmt.Sprintf("%s\n", e.Text)
+	}
+
+	return err
+}
+
+func handleWarnings(warnings *ResponseWarnings) error {
+	err := &serverError{}
+	if warnings.Main != nil {
+		err.msg = warnings.Main.Warnings
+	}
+
+	if warnings.Query != nil {
+		err.msg += warnings.Query.Warnings
+	}
+
+	return err
 }

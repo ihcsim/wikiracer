@@ -11,6 +11,7 @@ wikiracer attempts to find a path from one Wikipedia page to another using only 
 * [Architecture](#architecture)
 * [Wikipedia API](#wikipedia-api)
 * [Example](#example)
+* [Profiling](#profiling)
 * [Testing](#testing)
 * [LICENSE](#license)
 
@@ -137,7 +138,7 @@ func main() {
 ```
 
 ## Wikipedia API
-Integration with the Wikipedia API is done with the [go-mwclient](https://github.com/cgt/go-mwclient) library at the endpoint https://en.wikipedia.org/w/api.php
+Integration with the Wikipedia API is done with the [mediawiki](https://github.com/sadbox/mediawiki) library at the endpoint https://en.wikipedia.org/w/api.php
 
 The following query parameters are appended to the endpoint to query for links found in a page:
 
@@ -165,13 +166,7 @@ The server's log level can be altered using the environment variable `WIKIRACER_
 * DEBUG
 
 ## Profiling
-To generate profiling data for pprof visualization, start the `net/http/pprof` HTTP server at port 6060:
-```
-$ go run pprof/main.go
-2018/02/14 20:39:41 [INFO] - 1 (main/main.go:13) ▶ Starting profiling server at port 6060...
-```
-
-The profiling data can be viewed from your browser at http://localhost:6060/debug/pprof/
+To access the pprof visualization tool, navigate to http://localhost:6060/debug/pprof from your web browser.
 
 ## Testing
 The `test` package provides an in-memory mock wiki which can be used for testing.

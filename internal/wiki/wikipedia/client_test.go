@@ -1,6 +1,7 @@
 package wikipedia
 
 import (
+	"fmt"
 	"reflect"
 	"testing"
 
@@ -9,68 +10,104 @@ import (
 	"github.com/sadbox/mediawiki"
 )
 
+const (
+	invalidAction = "invalidAction"
+	invalidParam  = "invalidParam"
+)
+
 func TestFindPage(t *testing.T) {
-	client, err := NewClient()
-	if err != nil {
-		t.Fatal(err)
-	}
-	client.api = mockAPI
+	t.Run("Success", func(t *testing.T) {
+		client, err := NewClient()
+		if err != nil {
+			t.Fatal(err)
+		}
+		client.api = mockAPI
 
-	t.Run("One Batch", func(t *testing.T) {
-		var (
-			title     = "Mike Tyson"
-			nextBatch = ""
-		)
-		actual, err := client.FindPage(title, nextBatch)
+		t.Run("One Batch", func(t *testing.T) {
+			var (
+				title     = "Mike Tyson"
+				nextBatch = ""
+			)
+			actual, err := client.FindPage(title, nextBatch)
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			expected := &wiki.Page{
+				ID:        39027,
+				Title:     title,
+				Namespace: 0,
+				Links:     []string{"1984 Summer Olympics", "20/20 (US television show)", "Aaron Pryor", "Abdullah the Butcher"},
+			}
+
+			if !reflect.DeepEqual(actual, expected) {
+				t.Errorf("Mismatch page. Expected %+v\nActual %+v\n", expected, actual)
+			}
+		})
+
+		t.Run("Multiple Batches", func(t *testing.T) {
+			var (
+				title     = "Alexander the Great"
+				nextBatch = ""
+			)
+			actual, err := client.FindPage(title, nextBatch)
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			expected := &wiki.Page{
+				ID:        783,
+				Title:     title,
+				Namespace: 0,
+				Links:     []string{"Apepi", "Aahotepre", "Abbasid Caliphate", "Abdalonymus", "Dutch Empire", "Dynamis (Bosporan queen)", "Dynasty", "Early Dynastic Period (Egypt)", "Menandar", "Menes", "Mental health", "Mentuhotep I"},
+			}
+
+			if !reflect.DeepEqual(actual, expected) {
+				t.Errorf("Mismatch page. Expected %+v\nActual %+v\n", expected, actual)
+			}
+		})
+
+		t.Run("Missing Page", func(t *testing.T) {
+			var (
+				title     = "Missing Page"
+				nextBatch = ""
+			)
+			_, actual := client.FindPage(title, nextBatch)
+
+			expected := errors.PageNotFound{wiki.Page{Title: title}}
+			if expected.Error() != actual.Error() {
+				t.Fatal(err)
+			}
+		})
+	})
+
+	t.Run("Error", func(t *testing.T) {
+		client, err := NewClient()
 		if err != nil {
 			t.Fatal(err)
 		}
 
-		expected := &wiki.Page{
-			ID:        39027,
-			Title:     title,
-			Namespace: 0,
-			Links:     []string{"1984 Summer Olympics", "20/20 (US television show)", "Aaron Pryor", "Abdullah the Butcher"},
-		}
+		client.api = mockAPIError
 
-		if !reflect.DeepEqual(actual, expected) {
-			t.Errorf("Mismatch page. Expected %+v\nActual %+v\n", expected, actual)
-		}
-	})
+		t.Run("Invalid action", func(t *testing.T) {
+			expected := &serverError{
+				msg: fmt.Sprintf("Unrecognized value for parameter \"action\": %s.\n", invalidAction),
+			}
+			_, actual := client.FindPage(invalidAction, "")
+			if !reflect.DeepEqual(actual, expected) {
+				t.Errorf("Expected error didn't occur. Got %q", actual)
+			}
+		})
 
-	t.Run("Multiple Batches", func(t *testing.T) {
-		var (
-			title     = "Alexander the Great"
-			nextBatch = ""
-		)
-		actual, err := client.FindPage(title, nextBatch)
-		if err != nil {
-			t.Fatal(err)
-		}
-
-		expected := &wiki.Page{
-			ID:        783,
-			Title:     title,
-			Namespace: 0,
-			Links:     []string{"Apepi", "Aahotepre", "Abbasid Caliphate", "Abdalonymus", "Dutch Empire", "Dynamis (Bosporan queen)", "Dynasty", "Early Dynastic Period (Egypt)", "Menandar", "Menes", "Mental health", "Mentuhotep I"},
-		}
-
-		if !reflect.DeepEqual(actual, expected) {
-			t.Errorf("Mismatch page. Expected %+v\nActual %+v\n", expected, actual)
-		}
-	})
-
-	t.Run("Missing Page", func(t *testing.T) {
-		var (
-			title     = "Missing Page"
-			nextBatch = ""
-		)
-		_, actual := client.FindPage(title, nextBatch)
-
-		expected := errors.PageNotFound{wiki.Page{Title: title}}
-		if expected.Error() != actual.Error() {
-			t.Fatal(err)
-		}
+		t.Run("Invalid param", func(t *testing.T) {
+			expected := &serverError{
+				msg: fmt.Sprintf("Unrecognized parameter: %s.Unrecognized value for parameter \"list\": raremodule.", invalidParam),
+			}
+			_, actual := client.FindPage(invalidParam, "")
+			if !reflect.DeepEqual(actual, expected) {
+				t.Errorf("Expected error didn't occur. Got %q", actual)
+			}
+		})
 	})
 }
 
@@ -194,6 +231,42 @@ func mockAPI(api *mediawiki.MWApi, values ...map[string]string) ([]byte, error) 
     "links": 500
   }
 }`)
+	}
+
+	return json, nil
+}
+
+func mockAPIError(api *mediawiki.MWApi, values ...map[string]string) ([]byte, error) {
+	var json []byte
+
+	switch values[0]["titles"] {
+	case invalidAction:
+		json = []byte(fmt.Sprintf(`
+{
+  "errors": [
+    {
+      "code": "unknown_action",
+      "text": "Unrecognized value for parameter \"action\": %s.",
+      "module": "main"
+    }
+  ],
+  "docref": "See https://en.wikipedia.org/w/api.php for API usage. Subscribe to the mediawiki-api-announce mailing list at &lt;https://lists.wikimedia.org/mailman/listinfo/mediawiki-api-announce&gt; for notice of API deprecations and breaking changes.",
+  "servedby": "mw1282"
+}`, invalidAction))
+
+	case invalidParam:
+		json = []byte(fmt.Sprintf(`
+{
+  "batchcomplete": true,
+  "warnings": {
+    "main": {
+      "warnings": "Unrecognized parameter: %s."
+    },
+    "query": {
+      "warnings": "Unrecognized value for parameter \"list\": raremodule."
+    }
+  }
+}`, invalidParam))
 	}
 
 	return json, nil
