@@ -4,6 +4,11 @@
 
 wikiracer attempts to find a path from one Wikipedia page to another using only links in the pages. The starting page is known as the _origin_ and the target page is known as the _destination_.
 
+In this project, we explore how to:
+* Use the `context` package to cancel all running goroutines to avoid leaks.
+* Use the `pprof` package to capture and visualize profiling data.
+* Use the [MediaWiki API](https://www.mediawiki.org/wiki/MediaWiki) to interact with Wikipedia.
+
 ## Table of Content
 
 * [Prerequisites](#prerequisites)
