@@ -24,7 +24,7 @@ const (
 	pprofPort  = "6060"
 )
 
-var timeout = time.Second
+var timeout = 180 * time.Second
 
 func main() {
 	go func() {

@@ -53,7 +53,7 @@ func (f *Forward) Error() <-chan error {
 // 5. otherwise, for every link of `P`, the goroutine creates a new goroutine to crawl that linked page.
 func (f *Forward) discover(ctx context.Context, origin, destination string, intermediate *wiki.Path) {
 	if ctx.Err() != nil {
-		log.Instance().Debugf("Canceling crawl operation. Title=%q Reason=%q", origin, ctx.Err().Error())
+		log.Instance().Errorf("Canceling crawl operation. Title=%q Reason=%q", origin, ctx.Err().Error())
 		return
 	}
 
@@ -70,7 +70,7 @@ func (f *Forward) discover(ctx context.Context, origin, destination string, inte
 	intermediate.AddPage(page)
 
 	if f.visited(origin) {
-		log.Instance().Debugf("Loop detected. Title=%q Predecessors=%q", page.Title, intermediate)
+		log.Instance().Warningf("Loop detected. Title=%q Predecessors=%q", page.Title, intermediate)
 		return
 	}
 	f.addVisited(origin)

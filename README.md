@@ -44,7 +44,7 @@ $ go run server/main.go
 The following code snippet shows an example of using `curl` as a test client against the wikiracer server:
 ```
 # curl the server from another terminal
-$ curl "localhost:8080?origin=Mike%20Tyson&destination=Vancouver"
+$ curl "localhost:8080/wikiracer?origin=Mike%20Tyson&destination=Vancouver"
 Path: "Mike Tyson -> 1984 Summer Olympics -> 7-Eleven -> Big C -> Vancouver", Duration: 134.916µs
 ```
 
