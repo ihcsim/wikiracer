@@ -22,11 +22,11 @@ func (v *InputValidator) Validate(origin, destination string) error {
 		return errors.InvalidEmptyInput{Origin: origin, Destination: destination}
 	}
 
-	if _, err := v.FindPage(origin, ""); err != nil {
+	if _, err := v.FindPages(origin, ""); err != nil {
 		return err
 	}
 
-	if _, err := v.FindPage(destination, ""); err != nil {
+	if _, err := v.FindPages(destination, ""); err != nil {
 		return err
 	}
 

@@ -23,48 +23,116 @@ func TestFindPage(t *testing.T) {
 		}
 		client.api = mockAPI
 
-		t.Run("One Batch", func(t *testing.T) {
-			var (
-				title     = "Mike Tyson"
-				nextBatch = ""
-			)
-			actual, err := client.FindPage(title, nextBatch)
-			if err != nil {
-				t.Fatal(err)
-			}
+		t.Run("Single Batch Result", func(t *testing.T) {
+			t.Run("One Title", func(t *testing.T) {
+				var (
+					title     = "Mike Tyson"
+					nextBatch = ""
+				)
+				actual, err := client.FindPages(title, nextBatch)
+				if err != nil {
+					t.Fatal(err)
+				}
 
-			expected := &wiki.Page{
-				ID:        39027,
-				Title:     title,
-				Namespace: 0,
-				Links:     []string{"1984 Summer Olympics", "20/20 (US television show)", "Aaron Pryor", "Abdullah the Butcher"},
-			}
+				expected := &wiki.Page{
+					ID:        39027,
+					Title:     title,
+					Namespace: 0,
+					Links:     []string{"1984 Summer Olympics", "20/20 (US television show)", "Aaron Pryor", "Abdullah the Butcher"},
+				}
 
-			if !reflect.DeepEqual(actual, expected) {
-				t.Errorf("Mismatch page. Expected %+v\nActual %+v\n", expected, actual)
-			}
+				if !reflect.DeepEqual(actual[0], expected) {
+					t.Errorf("Mismatch page.\nExpected %+v\nActual %+v\n", expected, actual[0])
+				}
+			})
+
+			t.Run("Multiple Titles", func(t *testing.T) {
+				var (
+					firstTitle  = "Mike Tyson"
+					secondTitle = "Alexander the Great"
+					titles      = firstTitle + "|" + secondTitle
+					nextBatch   = ""
+				)
+				actual, err := client.FindPages(titles, nextBatch)
+				if err != nil {
+					t.Fatal(err)
+				}
+
+				expected := []*wiki.Page{
+					&wiki.Page{
+						ID:        39027,
+						Title:     firstTitle,
+						Namespace: 0,
+						Links:     []string{"1984 Summer Olympics", "20/20 (US television show)", "Aaron Pryor", "Abdullah the Butcher"},
+					},
+					&wiki.Page{
+						ID:        783,
+						Title:     secondTitle,
+						Namespace: 0,
+						Links:     []string{"Dutch Empire", "Dynamis (Bosporan queen)", "Dynasty", "Early Dynastic Period (Egypt)"},
+					},
+				}
+
+				if !reflect.DeepEqual(actual, expected) {
+					t.Errorf("Mismatch page.\nExpected %s\n  Actual %s\n", expected, actual)
+				}
+			})
 		})
 
-		t.Run("Multiple Batches", func(t *testing.T) {
-			var (
-				title     = "Alexander the Great"
-				nextBatch = ""
-			)
-			actual, err := client.FindPage(title, nextBatch)
-			if err != nil {
-				t.Fatal(err)
-			}
+		t.Run("Multi-Batch Result", func(t *testing.T) {
+			t.Run("One Title", func(t *testing.T) {
+				var (
+					title     = "Alexander the Great"
+					nextBatch = ""
+				)
+				actual, err := client.FindPages(title, nextBatch)
+				if err != nil {
+					t.Fatal(err)
+				}
 
-			expected := &wiki.Page{
-				ID:        783,
-				Title:     title,
-				Namespace: 0,
-				Links:     []string{"Apepi", "Aahotepre", "Abbasid Caliphate", "Abdalonymus", "Dutch Empire", "Dynamis (Bosporan queen)", "Dynasty", "Early Dynastic Period (Egypt)", "Menandar", "Menes", "Mental health", "Mentuhotep I"},
-			}
+				expected := &wiki.Page{
+					ID:        783,
+					Title:     title,
+					Namespace: 0,
+					Links:     []string{"Apepi", "Aahotepre", "Abbasid Caliphate", "Abdalonymus", "Dutch Empire", "Dynamis (Bosporan queen)", "Dynasty", "Early Dynastic Period (Egypt)", "Menandar", "Menes", "Mental health", "Mentuhotep I"},
+				}
 
-			if !reflect.DeepEqual(actual, expected) {
-				t.Errorf("Mismatch page. Expected %+v\nActual %+v\n", expected, actual)
-			}
+				if !reflect.DeepEqual(actual[0], expected) {
+					t.Errorf("Mismatch page.\nExpected %+v\nActual %+v\n", expected, actual[0])
+				}
+			})
+
+			t.Run("Multiple Titles", func(t *testing.T) {
+				var (
+					firstTitle  = "Mike Tyson"
+					secondTitle = "Vancouver"
+					titles      = firstTitle + "|" + secondTitle
+					nextBatch   = ""
+				)
+				actual, err := client.FindPages(titles, nextBatch)
+				if err != nil {
+					t.Fatal(err)
+				}
+
+				expected := []*wiki.Page{
+					&wiki.Page{
+						ID:        32706,
+						Title:     secondTitle,
+						Namespace: 0,
+						Links:     []string{"1918 Vancouver general strike", "1924 Winter Olympics", "1928 Winter Olympics", "1930 British Empire Games", "Hudson's Bay Company", "Humidex", "Hydroponics", "Ice hockey"},
+					},
+					&wiki.Page{
+						ID:        39027,
+						Title:     firstTitle,
+						Namespace: 0,
+						Links:     []string{"1984 Summer Olympics", "20/20 (US television show)", "Aaron Pryor", "Abdullah the Butcher"},
+					},
+				}
+
+				if !reflect.DeepEqual(actual, expected) {
+					t.Errorf("Mismatch page.\nExpected %s\n  Actual %s\n", expected, actual)
+				}
+			})
 		})
 
 		t.Run("Missing Page", func(t *testing.T) {
@@ -72,11 +140,11 @@ func TestFindPage(t *testing.T) {
 				title     = "Missing Page"
 				nextBatch = ""
 			)
-			_, actual := client.FindPage(title, nextBatch)
+			_, actual := client.FindPages(title, nextBatch)
 
 			expected := errors.PageNotFound{wiki.Page{Title: title}}
 			if expected.Error() != actual.Error() {
-				t.Fatal(err)
+				t.Errorf("Mismatch result.\nExpected error: %v\nActual error: %v", expected, actual)
 			}
 		})
 	})
@@ -93,7 +161,7 @@ func TestFindPage(t *testing.T) {
 			expected := &serverError{
 				msg: fmt.Sprintf("Unrecognized value for parameter \"action\": %s.\n", invalidAction),
 			}
-			_, actual := client.FindPage(invalidAction, "")
+			_, actual := client.FindPages(invalidAction, "")
 			if !reflect.DeepEqual(actual, expected) {
 				t.Errorf("Expected error didn't occur. Got %q", actual)
 			}
@@ -103,7 +171,7 @@ func TestFindPage(t *testing.T) {
 			expected := &serverError{
 				msg: fmt.Sprintf("Unrecognized parameter: %s.Unrecognized value for parameter \"list\": raremodule.", invalidParam),
 			}
-			_, actual := client.FindPage(invalidParam, "")
+			_, actual := client.FindPages(invalidParam, "")
 			if !reflect.DeepEqual(actual, expected) {
 				t.Errorf("Expected error didn't occur. Got %q", actual)
 			}
@@ -129,6 +197,41 @@ func mockAPI(api *mediawiki.MWApi, values ...map[string]string) ([]byte, error) 
           {"ns": 0, "title": "20\/20 (US television show)"},
           {"ns": 0, "title": "Aaron Pryor"},
           {"ns": 0, "title": "Abdullah the Butcher"}
+				]
+      }
+    ]
+  },
+  "limits": {
+    "links": 500
+  }
+}`)
+
+	case "Mike Tyson|Alexander the Great":
+		json = []byte(`
+{
+	"batchcomplete": true,
+  "query": {
+    "pages": [
+      {
+        "pageid": 39027,
+        "ns": 0,
+        "title": "Mike Tyson",
+        "links": [
+          {"ns": 0, "title": "1984 Summer Olympics"},
+          {"ns": 0, "title": "20\/20 (US television show)"},
+          {"ns": 0, "title": "Aaron Pryor"},
+          {"ns": 0, "title": "Abdullah the Butcher"}
+				]
+			},
+		  {
+        "pageid": 783,
+        "ns": 0,
+        "title": "Alexander the Great",
+        "links": [
+          {"ns": 0, "title": "Dutch Empire"},
+          {"ns": 0, "title": "Dynamis (Bosporan queen)"},
+          {"ns": 0, "title": "Dynasty"},
+          {"ns": 0, "title": "Early Dynastic Period (Egypt)"}
 				]
       }
     ]
@@ -219,13 +322,110 @@ func mockAPI(api *mediawiki.MWApi, values ...map[string]string) ([]byte, error) 
 }`)
 		}
 
+	case "Mike Tyson|Vancouver":
+		switch values[0]["plcontinue"] {
+		case "32706|0|Hudson's_Bay_Company":
+			json = []byte(`
+{
+  "continue": {
+    "plcontinue": "32706|0|The_Killing_(U.S._TV_series)",
+    "continue": "||"
+  },
+  "query": {
+    "pages": [
+      {
+        "pageid": 32706,
+        "ns": 0,
+        "title": "Vancouver",
+        "links": [
+          {"ns": 0, "title": "Hudson's Bay Company"},
+          {"ns": 0, "title": "Humidex"},
+          {"ns": 0, "title": "Hydroponics"},
+          {"ns": 0, "title": "Ice hockey"}
+        ]
+      },
+      {
+        "pageid": 39027,
+        "ns": 0,
+        "title": "Mike Tyson"
+      }
+    ]
+  },
+  "limits": {
+    "links": 500
+  }
+}
+`)
+
+		case "32706|0|The_Killing_(U.S._TV_series)":
+			json = []byte(`
+{
+  "batchcomplete": true,
+  "query": {
+    "pages": [
+      {
+        "pageid": 32706,
+        "ns": 0,
+        "title": "Vancouver"
+      },
+      {
+        "pageid": 39027,
+        "ns": 0,
+        "title": "Mike Tyson",
+				"links": [
+          {"ns": 0, "title": "1984 Summer Olympics"},
+          {"ns": 0, "title": "20\/20 (US television show)"},
+          {"ns": 0, "title": "Aaron Pryor"},
+          {"ns": 0, "title": "Abdullah the Butcher"}
+				]
+      }
+    ]
+  },
+  "limits": {
+    "links": 500
+  }
+}`)
+
+		default:
+			json = []byte(`
+{
+  "continue": {
+    "plcontinue": "32706|0|Hudson's_Bay_Company",
+    "continue": "||"
+  },
+  "query": {
+    "pages": [
+      {
+        "pageid": 32706,
+        "ns": 0,
+        "title": "Vancouver",
+        "links": [
+          {"ns": 0, "title": "1918 Vancouver general strike"},
+          {"ns": 0, "title": "1924 Winter Olympics"},
+          {"ns": 0, "title": "1928 Winter Olympics"},
+          {"ns": 0, "title": "1930 British Empire Games"}
+        ]
+      },
+      {
+        "pageid": 39027,
+        "ns": 0,
+        "title": "Mike Tyson"
+      }
+    ]
+  },
+  "limits": {
+    "links": 500
+  }
+}`)
+		}
+
 	case "Missing Page":
 		json = []byte(`
 {
   "batchcomplete": true,
   "query": {
-    "normalized": [{"fromencoded": false, "from": "llll", "to": "Llll"}],
-    "pages": [{"ns": 0, "title": "Llll", "missing": true}]
+    "normalized": [{"fromencoded": false, "from": "Missing Page", "to": "Missing Page"}],
+    "pages": [{"ns": 0, "title": "Missing Page", "missing": true}]
   },
   "limits": {
     "links": 500

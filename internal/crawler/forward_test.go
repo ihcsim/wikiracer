@@ -9,7 +9,7 @@ import (
 	"github.com/ihcsim/wikiracer/test"
 )
 
-const timeout = 500 * time.Millisecond
+const timeout = 5 * time.Second
 
 func TestDiscover(t *testing.T) {
 	log.Instance().SetBackend(log.QuietBackend)

@@ -64,7 +64,7 @@ func TestFindPath(t *testing.T) {
 					}
 
 				case <-ctx.Done():
-					t.Fatalf("Test case %d timed out")
+					t.Fatalf("Test case %d timed out", id)
 				}
 			}
 		})
@@ -107,7 +107,7 @@ func TestFindPath(t *testing.T) {
 						t.Errorf("Mismatch path. Test case: %d\nExpected either one of: %v\nActual: %s", id, testCase.expected, actual.Path)
 					}
 				case <-ctx.Done():
-					t.Fatalf("Test case %d timed out")
+					t.Fatalf("Test case %d timed out", id)
 				}
 			}
 		})

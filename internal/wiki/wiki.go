@@ -3,6 +3,6 @@ package wiki
 // Wiki provides a collection of methods to communicate with a wiki instance.
 type Wiki interface {
 
-	// FindPage returns the page of the given title.
-	FindPage(title, nextBatch string) (*Page, error)
+	// FindPages returns the page of the given title.
+	FindPages(titles, nextBatch string) ([]*Page, error)
 }

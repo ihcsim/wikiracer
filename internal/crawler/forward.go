@@ -4,9 +4,12 @@ import (
 	"context"
 	"sync"
 
+	"github.com/ihcsim/wikiracer/errors"
 	"github.com/ihcsim/wikiracer/internal/wiki"
 	"github.com/ihcsim/wikiracer/log"
 )
+
+const separator = "|"
 
 // Forward is a crawler that attempts to find a path from an origin page to a destination page using an uni-directional traversal pattern.
 type Forward struct {
@@ -51,58 +54,67 @@ func (f *Forward) Error() <-chan error {
 // 3. if `P` is the destination page, the _intermediate_ path is returned.
 // 4. if `P` isn't the destination page and has no links, the goroutine terminates.
 // 5. otherwise, for every link of `P`, the goroutine creates a new goroutine to crawl that linked page.
-func (f *Forward) discover(ctx context.Context, origin, destination string, intermediate *wiki.Path) {
+func (f *Forward) discover(ctx context.Context, titles, destination string, intermediate *wiki.Path) {
 	if ctx.Err() != nil {
-		log.Instance().Errorf("Canceling crawl operation. Title=%q Reason=%q", origin, ctx.Err().Error())
+		log.Instance().Errorf("Canceling crawl operation. Title=%q Reason=%q", titles, ctx.Err().Error())
 		return
 	}
 
-	page, err := f.FindPage(origin, "")
+	pages, err := f.FindPages(titles, "")
 	if err != nil {
+		if pageErr, ok := err.(errors.PageNotFound); ok {
+			if pageErr.Title != destination {
+				return
+			}
+		}
+
 		log.Instance().Errorf("%s", err)
 		f.errors <- err
 		return
 	}
 
-	if intermediate == nil {
-		intermediate = wiki.NewPath()
-	}
-	intermediate.AddPage(page)
+	for _, page := range pages {
+		newIntermediate := wiki.NewPath()
+		if intermediate != nil {
+			newIntermediate.Clone(intermediate)
+		}
+		newIntermediate.AddPage(page)
 
-	if f.visited(origin) {
-		log.Instance().Warningf("Loop detected. Title=%q Predecessors=%q", page.Title, intermediate)
-		return
-	}
-	f.addVisited(origin)
-	log.Instance().Debugf("Found page. Title=%q Predecessors=%q", page.Title, intermediate)
+		if f.visited(page.Title) {
+			log.Instance().Debugf("Loop detected. Title=%q Predecessors=%q", page.Title, newIntermediate)
+			continue
+		}
+		f.addVisited(page.Title)
+		log.Instance().Debugf("Found page. Title=%q Predecessors=%q", page.Title, newIntermediate)
 
-	// found destination
-	if page.Title == destination {
-		log.Instance().Debugf("Found destination. Title=%q Predecessors=%q", page.Title, intermediate)
-		f.path <- intermediate
-		return
-	}
+		// found destination
+		if page.Title == destination {
+			log.Instance().Infof("Found destination. Title=%q Predecessors=%q", page.Title, newIntermediate)
+			f.path <- newIntermediate
+			return
+		}
 
-	// this page is a dead end and the racer can't reach the destination from this path.
-	if len(page.Links) == 0 {
-		log.Instance().Debugf("Dead end page. Title=%q Predecessors=%q", page.Title, intermediate)
-		return
-	}
+		// this page is a dead end and the racer can't reach the destination from this path.
+		if len(page.Links) == 0 {
+			log.Instance().Debugf("Dead end page. Title=%q Predecessors=%q", page.Title, newIntermediate)
+			continue
+		}
 
-	for _, link := range page.Links {
-		go func(link string) {
-			log.Instance().Debugf("Starting crawl operation. Title=%q", link)
-			go func() {
-				newPath := wiki.NewPath()
-				newPath.Clone(intermediate)
-				f.discover(ctx, link, destination, newPath)
-			}()
+		var links string
+		for _, link := range page.Links {
+			links += separator + link
+		}
+		links = links[1:]
 
+		go func() {
 			select {
 			case <-ctx.Done():
-				log.Instance().Debugf("Finishing crawl operation. Title=%q Reason=%q", link, ctx.Err().Error())
+				log.Instance().Debugf("Finishing crawl operation. Title=%q Reason=%q", links, ctx.Err().Error())
+			default:
+				log.Instance().Debugf("Starting crawl operation. Title=%q", links)
+				f.discover(ctx, links, destination, newIntermediate)
 			}
-		}(link)
+		}()
 	}
 }
 

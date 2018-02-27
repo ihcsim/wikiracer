@@ -1,9 +1,13 @@
 package test
 
 import (
+	"strings"
+
 	"github.com/ihcsim/wikiracer/errors"
 	"github.com/ihcsim/wikiracer/internal/wiki"
 )
+
+const separator = "|"
 
 // MockWiki is an in-memory wiki
 type MockWiki struct {
@@ -35,13 +39,18 @@ func NewMockWiki() *MockWiki {
 	return &MockWiki{pages: testData}
 }
 
-// FindPage returns the page with the given title, if it exists.
+// FindPages returns the page with the given title, if it exists.
 // Otherwise, it returns a 'page not found' error.
-func (m *MockWiki) FindPage(title, nextBatch string) (*wiki.Page, error) {
-	page, exist := m.pages[title]
-	if !exist {
-		return nil, errors.PageNotFound{wiki.Page{Title: title}}
+func (m *MockWiki) FindPages(titles, nextBatch string) ([]*wiki.Page, error) {
+	pages := []*wiki.Page{}
+	for _, title := range strings.Split(titles, separator) {
+		page, exist := m.pages[title]
+		if !exist {
+			return nil, errors.PageNotFound{wiki.Page{Title: title}}
+		}
+
+		pages = append(pages, page)
 	}
 
-	return page, nil
+	return pages, nil
 }

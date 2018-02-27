@@ -35,9 +35,9 @@ func NewClient() (*Client, error) {
 
 type apiFunc func(api *mediawiki.MWApi, values ...map[string]string) ([]byte, error)
 
-// FindPage returns the page of the given title.
-func (c *Client) FindPage(title, nextBatch string) (*wiki.Page, error) {
-	response, err := c.query(title, nextBatch)
+// FindPages returns the page of the given title.
+func (c *Client) FindPages(titles, nextBatch string) ([]*wiki.Page, error) {
+	response, err := c.query(titles, nextBatch)
 	if err != nil {
 		return nil, err
 	}
@@ -52,20 +52,23 @@ func (c *Client) FindPage(title, nextBatch string) (*wiki.Page, error) {
 		return nil, err
 	}
 
-	page := response.Result.Pages[0]
-	if page.Missing {
-		return nil, errors.PageNotFound{wiki.Page{Title: title}}
-	}
+	results := []*wiki.Page{}
+	for _, page := range response.Result.Pages {
+		if page.Missing {
+			return nil, errors.PageNotFound{wiki.Page{Title: page.Title}}
+		}
 
-	var links []string
-	for _, link := range page.Links {
-		links = append(links, link.Title)
-	}
-	result := &wiki.Page{
-		ID:        response.Result.Pages[0].Pageid,
-		Title:     response.Result.Pages[0].Title,
-		Namespace: response.Result.Pages[0].Ns,
-		Links:     links,
+		var links []string
+		for _, link := range page.Links {
+			links = append(links, link.Title)
+		}
+
+		results = append(results, &wiki.Page{
+			ID:        page.Pageid,
+			Title:     page.Title,
+			Namespace: page.Ns,
+			Links:     links,
+		})
 	}
 
 	// the links in a page are usually returned in batches.
@@ -73,22 +76,28 @@ func (c *Client) FindPage(title, nextBatch string) (*wiki.Page, error) {
 	// when `plcontinue` is set in the response, it implies that there are more links yet to be fetched.
 
 	if response.Batchcomplete {
-		return result, nil
+		return results, nil
 	}
 
 	if response.Next != nil && response.Next.Plcontinue != "" {
-		partial, err := c.FindPage(title, response.Next.Plcontinue)
+		nextBatch, err := c.FindPages(titles, response.Next.Plcontinue)
 		if err != nil {
 			return nil, err
 		}
 
-		result.Links = append(result.Links, partial.Links...)
+		for _, batchResult := range nextBatch {
+			for _, result := range results {
+				if result.ID == batchResult.ID {
+					result.Links = append(result.Links, batchResult.Links...)
+				}
+			}
+		}
 	}
 
-	return result, nil
+	return results, nil
 }
 
-func (c *Client) query(title, plcontinue string) (*Response, error) {
+func (c *Client) query(titles, plcontinue string) (*Response, error) {
 	query := map[string]string{
 		"action":        "query",
 		"prop":          "links",
@@ -96,7 +105,7 @@ func (c *Client) query(title, plcontinue string) (*Response, error) {
 		"formatversion": responseFormatVersion,
 		"pllimit":       responseLimits,
 		"plnamespace":   namespace,
-		"titles":        title,
+		"titles":        titles,
 		"redirects":     "true",
 		"utf8":          "true",
 	}
