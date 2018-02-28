@@ -9,7 +9,10 @@ import (
 	"github.com/ihcsim/wikiracer/log"
 )
 
-const separator = "|"
+const (
+	separator               = "|"
+	wikipediaMaxTitlesCount = 50
+)
 
 // Forward is a crawler that attempts to find a path from an origin page to a destination page using an uni-directional traversal pattern.
 type Forward struct {
@@ -100,11 +103,11 @@ func (f *Forward) discover(ctx context.Context, titles, destination string, inte
 			continue
 		}
 
-		var links string
-		for _, link := range page.Links {
-			links += separator + link
+		batchCount := len(page.Links) / wikipediaMaxTitlesCount
+		links := make([]string, batchCount+1)
+		for index, link := range page.Links {
+			links[index/wikipediaMaxTitlesCount] += separator + link
 		}
-		links = links[1:]
 
 		go func() {
 			select {
@@ -112,7 +115,9 @@ func (f *Forward) discover(ctx context.Context, titles, destination string, inte
 				log.Instance().Debugf("Finishing crawl operation. Title=%q Reason=%q", links, ctx.Err().Error())
 			default:
 				log.Instance().Debugf("Starting crawl operation. Title=%q", links)
-				f.discover(ctx, links, destination, newIntermediate)
+				for _, l := range links {
+					go f.discover(ctx, l[1:], destination, newIntermediate)
+				}
 			}
 		}()
 	}

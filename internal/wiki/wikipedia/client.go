@@ -53,22 +53,25 @@ func (c *Client) FindPages(titles, nextBatch string) ([]*wiki.Page, error) {
 	}
 
 	results := []*wiki.Page{}
-	for _, page := range response.Result.Pages {
-		if page.Missing {
-			return nil, errors.PageNotFound{wiki.Page{Title: page.Title}}
-		}
 
-		var links []string
-		for _, link := range page.Links {
-			links = append(links, link.Title)
-		}
+	if response.Result != nil {
+		for _, page := range response.Result.Pages {
+			if page.Missing {
+				return nil, errors.PageNotFound{wiki.Page{Title: page.Title}}
+			}
 
-		results = append(results, &wiki.Page{
-			ID:        page.Pageid,
-			Title:     page.Title,
-			Namespace: page.Ns,
-			Links:     links,
-		})
+			var links []string
+			for _, link := range page.Links {
+				links = append(links, link.Title)
+			}
+
+			results = append(results, &wiki.Page{
+				ID:        page.Pageid,
+				Title:     page.Title,
+				Namespace: page.Ns,
+				Links:     links,
+			})
+		}
 	}
 
 	// the links in a page are usually returned in batches.
