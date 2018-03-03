@@ -4,6 +4,8 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"os"
+	"os/signal"
 	"time"
 
 	"github.com/ihcsim/wikiracer"
@@ -31,6 +33,15 @@ func main() {
 		log.Instance().Infof("Starting profiling server at port %s...", pprofPort)
 		if err := http.ListenAndServe(":"+pprofPort, nil); err != nil {
 			log.Instance().Fatal(err)
+		}
+	}()
+
+	interrupt := make(chan os.Signal, 1)
+	signal.Notify(interrupt)
+	go func() {
+		if signal := <-interrupt; signal == os.Interrupt {
+			log.Instance().Info("Stopping server...")
+			os.Exit(0)
 		}
 	}()
 
