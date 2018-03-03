@@ -3,6 +3,8 @@ package wikipedia
 import (
 	"encoding/json"
 	"fmt"
+	"strings"
+	"time"
 
 	"github.com/ihcsim/wikiracer/errors"
 	"github.com/ihcsim/wikiracer/internal/wiki"
@@ -16,6 +18,9 @@ const (
 	responseFormatVersion = "2"
 	responseLimits        = "max"
 	namespace             = "0"
+
+	wikipediaTooManyRequestsErr = "Error: 429, Too Many Requests"
+	coolDownDuration            = time.Second
 )
 
 // Client can communicate with the Wikipedia URL.
@@ -117,9 +122,23 @@ func (c *Client) query(titles, plcontinue string) (*Response, error) {
 		query["plcontinue"] = plcontinue
 	}
 
-	content, err := c.api(c.client, query)
-	if err != nil {
-		return nil, err
+	var (
+		content []byte
+		err     error
+	)
+	for {
+		content, err = c.api(c.client, query)
+		if err != nil {
+			return nil, err
+		}
+
+		// check if the wikipedia API returns a 429 error
+		if !strings.Contains(string(content), wikipediaTooManyRequestsErr) {
+			break
+		}
+
+		// retry the API call after the cooldown duration expires
+		time.Sleep(coolDownDuration)
 	}
 
 	var response Response
