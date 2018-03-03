@@ -38,22 +38,28 @@ $ make test
 
 # run the server
 $ go run server/main.go
-2018/02/13 21:18:02 [INFO] - 1 (main/main.go:27) ▶ Starting up server at port 8080...
+2018/03/02 21:25:27 [INFO] - 1 (main/main.go:37) ▶ Starting up server at port 8080...
+2018/03/02 21:25:27 [INFO] - 2 (main/main.go:31) ▶ Starting profiling server at port 6060...
 ```
 
 The following code snippet shows an example of using `curl` as a test client against the wikiracer server:
 ```
 # curl the server from another terminal
 $ curl "localhost:8080/wikiracer?origin=Mike%20Tyson&destination=Vancouver"
-Path: "Mike Tyson -> 1984 Summer Olympics -> 7-Eleven -> Big C -> Vancouver", Duration: 134.916µs
+Path: "Mike Tyson -> Archie Moore -> Vancouver", Duration: 13.967017202s
 ```
 
 The server outputs log lines that looks like:
 ```
-$ go run main.go
-2018/02/13 21:18:02 [INFO] - 1 (main/main.go:27) ▶ Starting up server at port 8080...
-2018/02/13 21:18:30 [INFO] - 2 (main/main.go:50) ▶ "Mike Tyson" -> "Vancouver": Starting...
-2018/02/13 21:18:30 [INFO] - 3 (main/main.go:66) ▶ "Mike Tyson" -> "Vancouver": SUCCESS. Path: "Mike Tyson -> 1984 Summer Olympics -> 7-Eleven -> Big C -> Vancouver", Duration: 134.916µs
+...
+2018/03/02 21:34:10 [INFO] - 3 (main/main.go:65) ▶ "Mike Tyson" -> "Vancouver": Starting...
+2018/03/02 21:25:48 [INFO] - 4 (crawler/forward.go:116) ▶ Found destination. Title="Vancouver" Predecessors="Mike Tyson -> Archie Moore -> Vancouver"
+2018/03/02 21:25:48 [INFO] - 5 (main/main.go:81) ▶ "Mike Tyson" -> "Vancouver": SUCCESS. Path: "Mike Tyson -> Archie Moore -> Vancouver", Duration: 13.967017202s
+2018/03/02 21:25:54 [INFO] - 6 (crawler/forward.go:116) ▶ Found destination. Title="Vancouver" Predecessors="Mike Tyson -> Bernardsville, New Jersey -> At-large -> Vancouver"
+2018/03/02 21:25:54 [INFO] - 7 (crawler/forward.go:116) ▶ Found destination. Title="Vancouver" Predecessors="Mike Tyson -> Dotdash -> New York City -> Vancouver"
+2018/03/02 21:25:55 [INFO] - 8 (crawler/forward.go:116) ▶ Found destination. Title="Vancouver" Predecessors="Mike Tyson -> Alcoholism -> Emergency department -> Vancouver"
+2018/03/02 21:25:55 [INFO] - 9 (crawler/forward.go:116) ▶ Found destination. Title="Vancouver" Predecessors="Mike Tyson -> American Broadcasting Company -> 20/20 (U.S. TV series) -> Vancouver"
+2018/03/02 21:25:58 [INFO] - 10 (crawler/forward.go:116) ▶ Found destination. Title="Vancouver" Predecessors="Mike Tyson -> Canadian Broadcasting Corporation -> Vancouver"
 ```
 
 ## Highlights
@@ -171,7 +177,9 @@ The server's log level can be altered using the environment variable `WIKIRACER_
 * DEBUG
 
 ## Profiling
-To access the pprof visualization tool, navigate to http://localhost:6060/debug/pprof from your web browser.
+We can prove that there are no goroutine leaks by usings the pprof visualization tool which can be accessed at http://localhost:6060/debug/pprof from your web browser.
+
+To validate, use the `curl` command to send queries to the HTTP server numerous times. Notice that after each run, the goroutine counts will always be between 4 to 6. For further debugging. click on the goroutine link to view all the live goroutines. Ensure that no wikiracer goroutines (except for the HTTP server) are deadlocked.
 
 ## Testing
 The `test` package provides an in-memory mock wiki which can be used for testing.

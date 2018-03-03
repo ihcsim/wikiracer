@@ -109,11 +109,12 @@ func (f *Forward) discover(ctx context.Context, titles, destination string, ance
 		batchCount := len(page.Links) / wikipediaMaxTitlesCount
 		links := make([]string, batchCount+1)
 		for index, link := range page.Links {
-			// if one of the linked pages is the destination, return it
-			if link == destination {
-				log.Instance().Infof("Found destination. Title=%q Predecessors=%q", link, clonedAncestors)
+			// if one of the linked pages is the destination and context is still alive,
+			// returns the destination
+			if link == destination && ctx.Err() == nil {
 				f.addVisited(link)
 				clonedAncestors.AddPage(&wiki.Page{Title: link})
+				log.Instance().Infof("Found destination. Title=%q Predecessors=%q", link, clonedAncestors)
 				f.path <- clonedAncestors
 				return
 			}
