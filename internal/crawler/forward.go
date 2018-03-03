@@ -57,9 +57,9 @@ func (f *Forward) Error() <-chan error {
 // 3. if `P` is the destination page, the _intermediate_ path is returned.
 // 4. if `P` isn't the destination page and has no links, the goroutine terminates.
 // 5. otherwise, for every link of `P`, the goroutine creates a new goroutine to crawl that linked page.
-func (f *Forward) discover(ctx context.Context, titles, destination string, intermediate *wiki.Path) {
+func (f *Forward) discover(ctx context.Context, titles, destination string, ancestors *wiki.Path) {
 	if ctx.Err() != nil {
-		log.Instance().Errorf("Canceling crawl operation. Title=%q Reason=%q", titles, ctx.Err().Error())
+		log.Instance().Debugf("Canceling crawl operation. Reason=%q", ctx.Err().Error())
 		return
 	}
 
@@ -77,47 +77,57 @@ func (f *Forward) discover(ctx context.Context, titles, destination string, inte
 	}
 
 	for _, page := range pages {
-		newIntermediate := wiki.NewPath()
-		if intermediate != nil {
-			newIntermediate.Clone(intermediate)
+		clonedAncestors := wiki.NewPath()
+		if ancestors != nil {
+			clonedAncestors.Clone(ancestors)
 		}
-		newIntermediate.AddPage(page)
+		clonedAncestors.AddPage(page)
 
+		// skip this page if is previously visited
 		if f.visited(page.Title) {
-			log.Instance().Debugf("Loop detected. Title=%q Predecessors=%q", page.Title, newIntermediate)
+			log.Instance().Debugf("Loop detected. Title=%q Predecessors=%q", page.Title, clonedAncestors)
 			continue
 		}
 		f.addVisited(page.Title)
-		log.Instance().Debugf("Found page. Title=%q Predecessors=%q", page.Title, newIntermediate)
+		log.Instance().Debugf("Found page. Title=%q Predecessors=%q", page.Title, clonedAncestors)
 
 		// found destination
 		if page.Title == destination {
-			log.Instance().Infof("Found destination. Title=%q Predecessors=%q", page.Title, newIntermediate)
-			f.path <- newIntermediate
+			log.Instance().Infof("Found destination. Title=%q Predecessors=%q", page.Title, clonedAncestors)
+			f.path <- clonedAncestors
 			return
 		}
 
 		// this page is a dead end and the racer can't reach the destination from this path.
 		if len(page.Links) == 0 {
-			log.Instance().Debugf("Dead end page. Title=%q Predecessors=%q", page.Title, newIntermediate)
+			log.Instance().Debugf("Dead end page. Title=%q Predecessors=%q", page.Title, clonedAncestors)
 			continue
 		}
 
+		// Since the Wikipedia API only supports 50 titles in one query,
+		// we have to break up the query into multiple calls.
 		batchCount := len(page.Links) / wikipediaMaxTitlesCount
 		links := make([]string, batchCount+1)
 		for index, link := range page.Links {
+			// if one of the linked pages is the destination, return it
+			if link == destination {
+				log.Instance().Infof("Found destination. Title=%q Predecessors=%q", link, clonedAncestors)
+				f.addVisited(link)
+				clonedAncestors.AddPage(&wiki.Page{Title: link})
+				f.path <- clonedAncestors
+				return
+			}
+
 			links[index/wikipediaMaxTitlesCount] += separator + link
 		}
 
 		go func() {
-			select {
-			case <-ctx.Done():
-				log.Instance().Debugf("Finishing crawl operation. Title=%q Reason=%q", links, ctx.Err().Error())
-			default:
-				log.Instance().Debugf("Starting crawl operation. Title=%q", links)
-				for _, l := range links {
-					go f.discover(ctx, l[1:], destination, newIntermediate)
+			log.Instance().Debugf("Starting crawl operation. Titles=%q", links)
+			for _, link := range links {
+				if link == "" {
+					continue
 				}
+				f.discover(ctx, link[1:], destination, clonedAncestors)
 			}
 		}()
 	}
